@@ -4,14 +4,14 @@
  * PROJECT: Burney Real Estate Portal
  *
  * PURPOSE:
- * Create the first Admin user in the database.
- *
- * LOGIN DETAILS:
- * Email: admin@burneyrealestate.com
- * Password: Admin@123
+ * Create test users for development:
+ * - Admin
+ * - Agent
+ * - Normal User
  *
  * IMPORTANT:
- * Change password after first login.
+ * These are test credentials for local development.
+ * Passwords should be changed before production.
  * =====================================================
  */
 
@@ -52,43 +52,81 @@ const prisma = new PrismaClient({
   adapter,
 });
 
-async function main() {
-  console.log("Creating Admin User...");
-
-  /**
-   * Convert plain password into encrypted hash.
-   * We never store plain passwords in database.
-   */
-  const hashedPassword = await bcrypt.hash("Admin@123", 12);
-
-  /**
-   * Check if admin already exists.
-   * This prevents duplicate admin accounts.
-   */
-  const existingAdmin = await prisma.user.findUnique({
+/**
+ * -----------------------------------------------------
+ * CREATE USER IF NOT EXISTS
+ * -----------------------------------------------------
+ * This helper prevents duplicate users.
+ * -----------------------------------------------------
+ */
+async function createUserIfNotExists({
+  name,
+  email,
+  password,
+  role,
+}: {
+  name: string;
+  email: string;
+  password: string;
+  role: "ADMIN" | "AGENT" | "USER";
+}) {
+  const existingUser = await prisma.user.findUnique({
     where: {
-      email: "admin@burneyrealestate.com",
+      email,
     },
   });
 
-  if (existingAdmin) {
-    console.log("Admin already exists.");
+  if (existingUser) {
+    console.log(`${role} already exists: ${email}`);
     return;
   }
 
-  /**
-   * Create first admin user.
-   */
+  const hashedPassword = await bcrypt.hash(password, 12);
+
   await prisma.user.create({
     data: {
-      name: "Admin",
-      email: "info@burneyrealestate.com",
+      name,
+      email,
       password: hashedPassword,
-      role: "ADMIN",
+      role,
     },
   });
 
-  console.log("Admin created successfully.");
+  console.log(`${role} created successfully: ${email}`);
+}
+
+/**
+ * -----------------------------------------------------
+ * MAIN SEED FUNCTION
+ * -----------------------------------------------------
+ * Creates default development users.
+ * -----------------------------------------------------
+ */
+async function main() {
+  console.log("Starting database seed...");
+
+  await createUserIfNotExists({
+    name: "Burney Admin",
+    email: "admin@burneyrealestate.com",
+    password: "Admin@123",
+    role: "ADMIN",
+  });
+
+  await createUserIfNotExists({
+    name: "Safdar Agent",
+    email: "agent@burneyrealestate.com",
+    password: "Agent@123",
+    role: "AGENT",
+  });
+
+  await createUserIfNotExists({
+    name: "Test User",
+    email: "user@burneyrealestate.com",
+    password: "User@123",
+    role: "USER",
+  });
+
+  console.log("Database seed completed.");
 }
 
 main()

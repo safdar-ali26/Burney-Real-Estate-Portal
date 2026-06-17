@@ -1,38 +1,21 @@
 /**
  * =====================================================
- * FILE: src/app/dashboard/page.tsx
+ * FILE: src/app/agent/page.tsx
  * PROJECT: Burney Real Estate Portal
  *
  * PURPOSE:
- * Central dashboard redirect page.
+ * Agent dashboard page.
  *
- * LOGIC:
- * - ADMIN redirects to /administrator
- * - AGENT redirects to /agent
- * - USER stays on /dashboard
+ * ACCESS:
+ * Only AGENT users can access this page.
  * =====================================================
  */
 
-import { redirect } from "next/navigation";
-
 import LogoutButton from "@/components/auth/logout-button";
-import { requireAuth } from "@/lib/auth-guard";
+import { requireRole } from "@/lib/auth-guard";
 
-export default async function DashboardPage() {
-  const session = await requireAuth();
-
-  const userRole = (session.user as any).role;
-
-  /**
-   * Redirect users based on their role.
-   */
-  if (userRole === "ADMIN") {
-    redirect("/administrator");
-  }
-
-  if (userRole === "AGENT") {
-    redirect("/agent");
-  }
+export default async function AgentPage() {
+  const session = await requireRole("AGENT");
 
   return (
     <main className="min-h-screen bg-black p-10 text-white">
@@ -40,15 +23,15 @@ export default async function DashboardPage() {
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-sm uppercase tracking-[0.3em] text-white/50">
-              User Dashboard
+              Agent Panel
             </p>
 
             <h1 className="mt-3 text-3xl font-bold text-[#EBCB4C]">
-              My Dashboard
+              Agent Dashboard
             </h1>
 
             <p className="mt-4 text-white/70">
-              Welcome, {session.user.name}. Here you will manage your saved properties.
+              Welcome, {session.user.name}. Here you will manage your listings and leads.
             </p>
           </div>
 

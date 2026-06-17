@@ -2,40 +2,27 @@
  * =====================================================
  * FILE: prisma/schema.prisma
  * PROJECT: Burney Real Estate Portal
+ *
  * PURPOSE:
- * This file defines the database structure for the project.
+ * Main database schema for Burney Real Estate Portal.
  *
- * Current Phase:
- * Week 1 - Foundation
- *
- * This initial schema includes:
- * - User roles
- * - Property categories
- * - Property status
- * - Users table
- * - Properties table
+ * CURRENT MODULES:
+ * - Users
+ * - Properties
+ * - Developers
+ * - Property Images
+ * - Saved Properties
+ * - Leads
  * =====================================================
  */
 
-/**
- * -----------------------------------------------------
- * PRISMA CLIENT GENERATOR
- * -----------------------------------------------------
- * This generates Prisma Client automatically.
- * Prisma Client will be used in Next.js to talk to database.
- * -----------------------------------------------------
- */
 generator client {
   provider = "prisma-client-js"
 }
 
 /**
- * -----------------------------------------------------
- * DATABASE CONNECTION
- * -----------------------------------------------------
- * Prisma 7 me database URL yahan nahi hota.
- * DATABASE_URL prisma.config.ts file se load hota hai.
- * -----------------------------------------------------
+ * Prisma 7:
+ * Database connection URL is managed from prisma.config.ts
  */
 datasource db {
   provider = "postgresql"
@@ -44,10 +31,6 @@ datasource db {
 /**
  * -----------------------------------------------------
  * USER ROLES
- * -----------------------------------------------------
- * ADMIN = Full website control
- * AGENT = Can upload Buy/Rent properties
- * USER  = Normal registered website user
  * -----------------------------------------------------
  */
 enum UserRole {
@@ -58,11 +41,7 @@ enum UserRole {
 
 /**
  * -----------------------------------------------------
- * PROPERTY CATEGORIES
- * -----------------------------------------------------
- * BUY     = Secondary properties for sale
- * RENT    = Rental properties
- * OFFPLAN = Off-plan projects from CRM
+ * PROPERTY CATEGORY
  * -----------------------------------------------------
  */
 enum PropertyCategory {
@@ -75,10 +54,6 @@ enum PropertyCategory {
  * -----------------------------------------------------
  * PROPERTY STATUS
  * -----------------------------------------------------
- * AVAILABLE = Property is available
- * LIMITED   = Limited availability
- * SOLD      = Property is sold
- * -----------------------------------------------------
  */
 enum PropertyStatus {
   AVAILABLE
@@ -88,38 +63,70 @@ enum PropertyStatus {
 
 /**
  * -----------------------------------------------------
- * USER TABLE
+ * PROPERTY APPROVAL STATUS
  * -----------------------------------------------------
- * This table stores Admins, Agents, and Users.
- * Role field decides user permissions.
+ * Agent uploaded properties will need admin approval.
+ * -----------------------------------------------------
+ */
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/**
+ * -----------------------------------------------------
+ * LEAD STATUS
+ * -----------------------------------------------------
+ */
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  CLOSED
+  LOST
+}
+
+/**
+ * -----------------------------------------------------
+ * USER TABLE
  * -----------------------------------------------------
  */
 model User {
-  // Unique user ID generated automatically
-  id String @id @default(cuid())
-
-  // User full name
-  name String?
-
-  // User email address, used for login
-  email String @unique
-
-  // User phone number
-  phone String?
-
-  // Password will be saved in encrypted form
+  id       String   @id @default(cuid())
+  name     String?
+  email    String   @unique
+  phone    String?
   password String?
+  role     UserRole @default(USER)
 
-  // User role: ADMIN, AGENT, or USER
-  role UserRole @default(USER)
+  properties      Property[]
+  savedProperties SavedProperty[]
+  leads           Lead[]
 
-  // One user/agent can have many properties
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/**
+ * -----------------------------------------------------
+ * DEVELOPER TABLE
+ * -----------------------------------------------------
+ * Stores developer information.
+ * Off-plan projects will be linked with developers.
+ * -----------------------------------------------------
+ */
+model Developer {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  slug        String  @unique
+  logo        String?
+  description String?
+  website     String?
+
   properties Property[]
 
-  // Date when user was created
   createdAt DateTime @default(now())
-
-  // Date when user was last updated
   updatedAt DateTime @updatedAt
 }
 
@@ -127,66 +134,113 @@ model User {
  * -----------------------------------------------------
  * PROPERTY TABLE
  * -----------------------------------------------------
- * This table stores Buy, Rent, and Off-plan properties.
- * Off-plan properties will come from CRM.
- * Buy/Rent properties will be uploaded by agents.
+ * Stores Buy, Rent, and Off-plan properties.
  * -----------------------------------------------------
  */
 model Property {
-  // Unique property ID generated automatically
+  id          String           @id @default(cuid())
+  title       String
+  slug        String           @unique
+  description String?
+  category    PropertyCategory
+  status      PropertyStatus   @default(AVAILABLE)
+
+  approvalStatus ApprovalStatus @default(PENDING)
+
+  price     Float?
+  bedrooms  String?
+  bathrooms Int?
+  size      Float?
+
+  emirate  String?
+  district String?
+  type     String?
+
+  developerId String?
+  developer   Developer? @relation(fields: [developerId], references: [id])
+
+  agentId String?
+  agent   User?   @relation(fields: [agentId], references: [id])
+
+  images          PropertyImage[]
+  leads           Lead[]
+  savedProperties SavedProperty[]
+
+  crmId     String? @unique
+  isFromCRM Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/**
+ * -----------------------------------------------------
+ * PROPERTY IMAGE TABLE
+ * -----------------------------------------------------
+ * Stores multiple images per property.
+ * -----------------------------------------------------
+ */
+model PropertyImage {
+  id         String   @id @default(cuid())
+  url        String
+  alt        String?
+  order      Int      @default(0)
+
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+/**
+ * -----------------------------------------------------
+ * SAVED PROPERTY TABLE
+ * -----------------------------------------------------
+ * Allows registered users to save/favorite properties.
+ * -----------------------------------------------------
+ */
+model SavedProperty {
   id String @id @default(cuid())
 
-  // Property title
-  title String
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // SEO-friendly URL slug
-  slug String @unique
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
-  // Property description
-  description String?
-
-  // Property category: BUY, RENT, OFFPLAN
-  category PropertyCategory
-
-  // Property status: AVAILABLE, LIMITED, SOLD
-  status PropertyStatus @default(AVAILABLE)
-
-  // Property price
-  price Float?
-
-  // Bedrooms, example: Studio, 1 BR, 2 BR
-  bedrooms String?
-
-  // Number of bathrooms
-  bathrooms Int?
-
-  // Property size in square feet
-  size Float?
-
-  // Emirate, example: Dubai, Abu Dhabi, Sharjah
-  emirate String?
-
-  // District, example: Al Jaddaf, Dubai South
-  district String?
-
-  // Property type, example: Apartment, Villa, Townhouse
-  type String?
-
-  // Developer name, example: Emaar, DAMAC, Azizi
-  developer String?
-
-  // Property image URLs
-  images String[]
-
-  // Agent ID for Buy/Rent properties
-  agentId String?
-
-  // Relation with User table
-  agent User? @relation(fields: [agentId], references: [id])
-
-  // Date when property was created
   createdAt DateTime @default(now())
 
-  // Date when property was last updated
+  @@unique([userId, propertyId])
+}
+
+/**
+ * -----------------------------------------------------
+ * LEAD TABLE
+ * -----------------------------------------------------
+ * Stores all property inquiries.
+ *
+ * Off-plan leads go to admin.
+ * Buy/Rent leads go to uploading agent.
+ * -----------------------------------------------------
+ */
+model Lead {
+  id String @id @default(cuid())
+
+  name    String
+  email   String?
+  phone   String
+  message String?
+
+  status LeadStatus @default(NEW)
+
+  propertyId String?
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  assignedToId String?
+  assignedTo   User?   @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  source String?
+
+  createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
