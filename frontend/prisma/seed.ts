@@ -126,6 +126,74 @@ async function main() {
     role: "USER",
   });
 
+    /**
+   * -----------------------------------------------------
+   * SAMPLE DEVELOPER
+   * -----------------------------------------------------
+   * Creates one sample developer for testing property module.
+   * This prevents duplicate developer using unique slug.
+   * -----------------------------------------------------
+   */
+  const sampleDeveloper = await prisma.developer.upsert({
+    where: {
+      slug: "azizi-developments",
+    },
+    update: {},
+    create: {
+      name: "Azizi Developments",
+      slug: "azizi-developments",
+      description: "Sample developer created for testing Burney Portal.",
+      website: "https://www.azizidevelopments.com",
+    },
+  });
+
+  console.log("Sample developer ready:", sampleDeveloper.name);
+
+  /**
+   * -----------------------------------------------------
+   * SAMPLE PROPERTY
+   * -----------------------------------------------------
+   * Creates one sample Buy property for testing:
+   * - Admin Properties Table
+   * - Approval Status
+   * - Developer Relation
+   * - Agent Relation
+   * -----------------------------------------------------
+   */
+  const sampleAgent = await prisma.user.findUnique({
+    where: {
+      email: "agent@burneyrealestate.com",
+    },
+  });
+
+  await prisma.property.upsert({
+    where: {
+      slug: "sample-jaddaf-apartment",
+    },
+    update: {},
+    create: {
+      title: "Sample Jaddaf Apartment",
+      slug: "sample-jaddaf-apartment",
+      description:
+        "A sample property listing created for testing the admin property management module.",
+      category: "BUY",
+      status: "AVAILABLE",
+      approvalStatus: "PENDING",
+      price: 1200000,
+      bedrooms: "2 BR",
+      bathrooms: 2,
+      size: 1150,
+      emirate: "Dubai",
+      district: "Al Jaddaf",
+      type: "Apartment",
+      developerId: sampleDeveloper.id,
+      agentId: sampleAgent?.id,
+      isFromCRM: false,
+    },
+  });
+
+  console.log("Sample property ready: Sample Jaddaf Apartment");
+
   console.log("Database seed completed.");
 }
 

@@ -1,14 +1,3 @@
-/**
- * =====================================================
- * FILE: recent-leads.tsx
- * PROJECT: Burney Real Estate Portal
- *
- * PURPOSE:
- * Shows latest leads preview in admin dashboard.
- * Static data for now, database integration later.
- * =====================================================
- */
-
 const leads = [
   {
     name: "Ahmed Khan",
@@ -32,12 +21,13 @@ const leads = [
 
 export default function RecentLeads() {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl">
+    <div className="rounded-3xl border border-border bg-card p-6 shadow-xl">
       <div className="mb-6">
-        <h3 className="text-lg font-semibold text-white">
+        <h3 className="text-lg font-semibold text-foreground">
           Recent Leads
         </h3>
-        <p className="text-sm text-white/45">
+
+        <p className="text-sm text-muted-foreground">
           Latest property inquiries
         </p>
       </div>
@@ -46,20 +36,33 @@ export default function RecentLeads() {
         {leads.map((lead) => (
           <div
             key={lead.phone}
-            className="rounded-2xl border border-white/10 bg-black/30 p-4"
+            className="
+              rounded-2xl
+              border
+              border-border
+              bg-background
+              p-4
+              transition
+              hover:border-[#EBCB4C]/40
+              hover:shadow-lg
+            "
           >
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-white">{lead.name}</p>
-                <p className="mt-1 text-sm text-white/45">
+                <p className="font-semibold text-foreground">
+                  {lead.name}
+                </p>
+
+                <p className="mt-1 text-sm text-muted-foreground">
                   {lead.property}
                 </p>
-                <p className="mt-1 text-xs text-white/35">
+
+                <p className="mt-1 text-xs text-muted-foreground">
                   {lead.phone}
                 </p>
               </div>
 
-              <span className="rounded-full border border-[#EBCB4C]/30 bg-[#EBCB4C]/10 px-3 py-1 text-xs text-[#EBCB4C]">
+              <span className="rounded-full bg-[#EBCB4C]/10 px-3 py-1 text-xs font-medium text-[#B99100]">
                 {lead.status}
               </span>
             </div>

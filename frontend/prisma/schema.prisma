@@ -162,6 +162,7 @@ model Property {
   agentId String?
   agent   User?   @relation(fields: [agentId], references: [id])
 
+  featuredImage String?
   images          PropertyImage[]
   leads           Lead[]
   savedProperties SavedProperty[]
