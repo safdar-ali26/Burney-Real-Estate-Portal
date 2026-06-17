@@ -1,34 +1,44 @@
-/**
- * =====================================================
- * FILE: src/components/providers/theme-provider.tsx
- * PROJECT: Burney Real Estate Portal
- *
- * PURPOSE:
- * Provides dark/light theme support for the whole website.
- *
- * PACKAGE:
- * next-themes
- * =====================================================
- */
-
 "use client";
 
-import * as React from "react";
-import { ThemeProvider as NextThemesProvider } from "next-themes";
+import React, { createContext, useContext, useEffect, useState } from "react";
 
-export function ThemeProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+type Theme = "light" | "dark";
+
+const ThemeContext = createContext<{
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
+} | null>(null);
+
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [theme, setThemeState] = useState<Theme>("dark");
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme") as Theme | null;
+    const defaultTheme = savedTheme || "dark";
+
+    setThemeState(defaultTheme);
+    document.documentElement.classList.toggle("dark", defaultTheme === "dark");
+  }, []);
+
+  function setTheme(newTheme: Theme) {
+    setThemeState(newTheme);
+    localStorage.setItem("theme", newTheme);
+    document.documentElement.classList.toggle("dark", newTheme === "dark");
+  }
+
   return (
-    <NextThemesProvider
-      attribute="class"
-      defaultTheme="dark"
-      enableSystem
-      disableTransitionOnChange
-    >
+    <ThemeContext.Provider value={{ theme, setTheme }}>
       {children}
-    </NextThemesProvider>
+    </ThemeContext.Provider>
   );
+}
+
+export function useAppTheme() {
+  const context = useContext(ThemeContext);
+
+  if (!context) {
+    throw new Error("useAppTheme must be used inside ThemeProvider");
+  }
+
+  return context;
 }

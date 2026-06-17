@@ -1,37 +1,12 @@
-/**
- * =====================================================
- * FILE: theme-logo.tsx
- * PROJECT: Burney Real Estate Portal
- *
- * PURPOSE:
- * Switches logo based on dark/light theme.
- * =====================================================
- */
-
 "use client";
 
 import Image from "next/image";
-import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useAppTheme } from "@/components/providers/theme-provider";
 
 export default function ThemeLogo() {
-  const { resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+  const { theme } = useAppTheme();
 
-  /**
-   * Prevent hydration mismatch because theme is only known
-   * after client mounts.
-   */
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return <div className="h-[42px] w-[42px]" />;
-  }
-
-  const logoSrc =
-    resolvedTheme === "light" ? "/logo-black.png" : "/logo.png";
+  const logoSrc = theme === "light" ? "/logo-black.png" : "/logo.png";
 
   return (
     <Image

@@ -1,63 +1,96 @@
 /**
  * =====================================================
- * FILE: src/app/administrator/properties/add/page.tsx
+ * FILE: src/app/administrator/properties/[id]/edit/page.tsx
  * PROJECT: Burney Real Estate Portal
  *
  * PURPOSE:
- * Admin add property page.
+ * Edit property page.
  *
  * FEATURES:
  * - Protected admin page
- * - Property creation form
- * - Saves property to Supabase through Prisma
+ * - Loads existing property data
+ * - Updates property in Supabase through Prisma
+ * - Developer dropdown
+ * - Featured image URL update
  * =====================================================
  */
 
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
+
 import AdminLayout from "@/components/admin/admin-layout";
-import { createPropertyAction } from "@/actions/create-property";
+import { updatePropertyAction } from "@/actions/update-property";
 import { requireRole } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 
-export default async function AddPropertyPage() {
+interface Props {
+  params: Promise<{
+    id: string;
+  }>;
+}
+
+export default async function EditPropertyPage({ params }: Props) {
   await requireRole("ADMIN");
+
+  const { id } = await params;
+
+  const property = await prisma.property.findUnique({
+    where: {
+      id,
+    },
+    include: {
+      images: {
+        orderBy: {
+          order: "asc",
+        },
+      },
+    },
+  });
+
+  if (!property) {
+    notFound();
+  }
+
   const developers = await prisma.developer.findMany({
     orderBy: {
       name: "asc",
     },
   });
 
+  const updatePropertyWithId = updatePropertyAction.bind(
+    null,
+    property.id
+  );
+
+  const galleryImagesValue = property.images
+    .map((image) => image.url)
+    .join("\n");
+
   return (
     <AdminLayout
-      title="Add Property"
-      subtitle="Create a new Buy, Rent or Off-Plan property."
+      title="Edit Property"
+      subtitle="Update property listing details."
     >
       <form
-        action={createPropertyAction}
+        action={updatePropertyWithId}
         className="grid gap-6 rounded-3xl border border-border bg-card p-6 shadow-xl"
       >
         <div>
-          <a
-            href="/administrator/properties"
-            className="
-      inline-flex
-      items-center
-      gap-2
-      text-sm
-      font-medium
-      text-muted-foreground
-      transition
-      hover:text-[#EBCB4C]
-    "
+          <Link
+            href={`/administrator/properties/${property.id}`}
+            className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition hover:text-[#EBCB4C]"
           >
-            ← Back to Properties
-          </a>
+            <ArrowLeft className="h-4 w-4" />
+            Back to Property Details
+          </Link>
 
           <h2 className="mt-4 text-xl font-bold text-foreground">
             Property Information
           </h2>
 
           <p className="mt-1 text-sm text-muted-foreground">
-            Add basic property details below.
+            Update property details below.
           </p>
         </div>
 
@@ -66,10 +99,11 @@ export default async function AddPropertyPage() {
             <label className="mb-2 block text-sm font-medium text-foreground">
               Property Title
             </label>
+
             <input
               name="title"
               required
-              placeholder="Example: Luxury 2BR Apartment in Al Jaddaf"
+              defaultValue={property.title}
               className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-[#EBCB4C]"
             />
           </div>
@@ -78,8 +112,10 @@ export default async function AddPropertyPage() {
             <label className="mb-2 block text-sm font-medium text-foreground">
               Category
             </label>
+
             <select
               name="category"
+              defaultValue={property.category}
               className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-[#EBCB4C]"
             >
               <option value="BUY">Buy</option>
@@ -92,8 +128,10 @@ export default async function AddPropertyPage() {
             <label className="mb-2 block text-sm font-medium text-foreground">
               Status
             </label>
+
             <select
               name="status"
+              defaultValue={property.status}
               className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-[#EBCB4C]"
             >
               <option value="AVAILABLE">Available</option>
@@ -106,10 +144,11 @@ export default async function AddPropertyPage() {
             <label className="mb-2 block text-sm font-medium text-foreground">
               Price
             </label>
+
             <input
               name="price"
               type="number"
-              placeholder="1200000"
+              defaultValue={property.price || ""}
               className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-[#EBCB4C]"
             />
           </div>
@@ -118,8 +157,10 @@ export default async function AddPropertyPage() {
             <label className="mb-2 block text-sm font-medium text-foreground">
               Bedrooms
             </label>
+
             <select
               name="bedrooms"
+              defaultValue={property.bedrooms || ""}
               className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-[#EBCB4C]"
             >
               <option value="">Select Bedroom</option>
@@ -140,10 +181,11 @@ export default async function AddPropertyPage() {
             <label className="mb-2 block text-sm font-medium text-foreground">
               Bathrooms
             </label>
+
             <input
               name="bathrooms"
               type="number"
-              placeholder="2"
+              defaultValue={property.bathrooms || ""}
               className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-[#EBCB4C]"
             />
           </div>
@@ -152,10 +194,11 @@ export default async function AddPropertyPage() {
             <label className="mb-2 block text-sm font-medium text-foreground">
               Size SQFT
             </label>
+
             <input
               name="size"
               type="number"
-              placeholder="1150"
+              defaultValue={property.size || ""}
               className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-[#EBCB4C]"
             />
           </div>
@@ -164,8 +207,10 @@ export default async function AddPropertyPage() {
             <label className="mb-2 block text-sm font-medium text-foreground">
               Emirate
             </label>
+
             <select
               name="emirate"
+              defaultValue={property.emirate || ""}
               className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-[#EBCB4C]"
             >
               <option value="">Select Emirate</option>
@@ -183,9 +228,10 @@ export default async function AddPropertyPage() {
             <label className="mb-2 block text-sm font-medium text-foreground">
               District
             </label>
+
             <input
               name="district"
-              placeholder="Al Jaddaf"
+              defaultValue={property.district || ""}
               className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-[#EBCB4C]"
             />
           </div>
@@ -194,8 +240,10 @@ export default async function AddPropertyPage() {
             <label className="mb-2 block text-sm font-medium text-foreground">
               Property Type
             </label>
+
             <select
               name="type"
+              defaultValue={property.type || ""}
               className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-[#EBCB4C]"
             >
               <option value="">Select Type</option>
@@ -212,8 +260,10 @@ export default async function AddPropertyPage() {
             <label className="mb-2 block text-sm font-medium text-foreground">
               Developer
             </label>
+
             <select
               name="developerId"
+              defaultValue={property.developerId || ""}
               className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-[#EBCB4C]"
             >
               <option value="">Select Developer</option>
@@ -229,10 +279,11 @@ export default async function AddPropertyPage() {
             <label className="mb-2 block text-sm font-medium text-foreground">
               Description
             </label>
+
             <textarea
               name="description"
               rows={6}
-              placeholder="Write property description..."
+              defaultValue={property.description || ""}
               className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-[#EBCB4C]"
             />
           </div>
@@ -241,11 +292,13 @@ export default async function AddPropertyPage() {
             <label className="mb-2 block text-sm font-medium text-foreground">
               Featured Image URL
             </label>
+
             <input
               name="featuredImage"
-              placeholder="https://example.com/property-main-image.jpg"
+              defaultValue={property.featuredImage || ""}
               className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-[#EBCB4C]"
             />
+
             <p className="mt-2 text-xs text-muted-foreground">
               This image will be used as the main property image.
             </p>
@@ -255,34 +308,33 @@ export default async function AddPropertyPage() {
             <label className="mb-2 block text-sm font-medium text-foreground">
               Gallery Images URLs
             </label>
+
             <textarea
               name="galleryImages"
               rows={5}
-              placeholder={`https://example.com/image-1.jpg
-https://example.com/image-2.jpg
-https://example.com/image-3.jpg`}
+              defaultValue={galleryImagesValue}
               className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-[#EBCB4C]"
             />
+
             <p className="mt-2 text-xs text-muted-foreground">
-              Add one image URL per line. Later we will replace this with direct
-              image upload.
+              Add one image URL per line.
             </p>
           </div>
         </div>
 
         <div className="flex justify-end gap-3">
-          <a
-            href="/administrator/properties"
+          <Link
+            href={`/administrator/properties/${property.id}`}
             className="rounded-2xl border border-border px-5 py-3 text-sm font-semibold text-foreground transition hover:border-[#EBCB4C]/50 hover:text-[#EBCB4C]"
           >
             Cancel
-          </a>
+          </Link>
 
           <button
             type="submit"
             className="rounded-2xl bg-[#EBCB4C] px-6 py-3 text-sm font-semibold text-black shadow-sm transition hover:opacity-90"
           >
-            Create Property
+            Save Changes
           </button>
         </div>
       </form>

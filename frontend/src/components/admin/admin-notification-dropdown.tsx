@@ -60,7 +60,7 @@ const notifications = [
 export default function AdminNotificationDropdown() {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="outline-none">
+      <DropdownMenuTrigger asChild>
         <button className="relative rounded-2xl border border-border bg-card p-2.5 text-foreground shadow-sm transition hover:border-[#EBCB4C]/50 hover:bg-[#EBCB4C]/10 hover:text-[#EBCB4C]">
           <Bell className="h-5 w-5" />
 
