@@ -18,6 +18,8 @@ import AdminLayout from "@/components/admin/admin-layout";
 import { createPropertyAction } from "@/actions/create-property";
 import { requireRole } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
+import ImageUploadField from "@/components/admin/image-upload-field";
+import MultipleImageUploadField from "@/components/admin/multiple-image-upload-field";
 
 const districts = [
   "Al Barari",
@@ -331,35 +333,25 @@ export default async function AddPropertyPage() {
           </div>
 
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium text-foreground">
-              Featured Image URL
-            </label>
-            <input
-              name="featuredImage"
-              placeholder="https://example.com/property-main-image.jpg"
-              className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-[#EBCB4C]"
-            />
+            <div className="md:col-span-2">
+              <ImageUploadField label="Featured Image" name="featuredImage" />
+            </div>
             <p className="mt-2 text-xs text-muted-foreground">
               This image will be used as the main property image.
             </p>
           </div>
 
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium text-foreground">
-              Gallery Images URLs
-            </label>
-            <textarea
-              name="galleryImages"
-              rows={5}
-              placeholder={`https://example.com/image-1.jpg
-https://example.com/image-2.jpg
-https://example.com/image-3.jpg`}
-              className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-[#EBCB4C]"
-            />
-            <p className="mt-2 text-xs text-muted-foreground">
+            <div className="md:col-span-2">
+              <MultipleImageUploadField
+                label="Gallery Images"
+                name="galleryImages"
+              />
+            </div>
+            {/* <p className="mt-2 text-xs text-muted-foreground">
               Add one image URL per line. Later we will replace this with direct
               image upload.
-            </p>
+            </p> */}
           </div>
         </div>
 

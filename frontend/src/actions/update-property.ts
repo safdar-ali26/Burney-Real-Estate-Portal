@@ -9,6 +9,15 @@ export async function updatePropertyAction(
   propertyId: string,
   formData: FormData
 ) {
+  const featuredImage = String(formData.get("featuredImage") || "");
+
+  const galleryImagesRaw = String(formData.get("galleryImages") || "");
+
+  const galleryImages = galleryImagesRaw
+    .split("\n")
+    .map((url) => url.trim())
+    .filter(Boolean);
+
   await prisma.property.update({
     where: {
       id: propertyId,
@@ -30,20 +39,30 @@ export async function updatePropertyAction(
       district: String(formData.get("district") || ""),
       type: String(formData.get("type") || ""),
 
-      featuredImage: String(
-        formData.get("featuredImage") || ""
-      ),
+      featuredImage,
 
-      developerId:
-        String(formData.get("developerId") || "") ||
-        null,
+      developerId: String(formData.get("developerId") || "") || null,
     },
   });
 
+  await prisma.propertyImage.deleteMany({
+    where: {
+      propertyId,
+    },
+  });
+
+  if (galleryImages.length > 0) {
+    await prisma.propertyImage.createMany({
+      data: galleryImages.map((url, index) => ({
+        url,
+        order: index,
+        propertyId,
+      })),
+    });
+  }
+
   revalidatePath("/administrator/properties");
-  revalidatePath(
-    `/administrator/properties/${propertyId}`
-  );
+  revalidatePath(`/administrator/properties/${propertyId}`);
 
   redirect(`/administrator/properties/${propertyId}`);
 }

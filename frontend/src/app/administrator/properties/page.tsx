@@ -9,6 +9,7 @@
  * FEATURES:
  * - Search properties
  * - Filter properties
+ * - Pagination
  * - Compact professional property cards
  * - Featured image preview
  * - AED formatted price
@@ -39,6 +40,7 @@ import { prisma } from "@/lib/prisma";
 
 interface Props {
   searchParams: Promise<{
+    page?: string;
     search?: string;
     emirate?: string;
     district?: string;
@@ -149,6 +151,10 @@ export default async function AdminPropertiesPage({ searchParams }: Props) {
 
   const params = await searchParams;
 
+  const currentPage = Math.max(Number(params.page || "1"), 1);
+  const pageSize = 12;
+  const skip = (currentPage - 1) * pageSize;
+
   const search = params.search?.trim() || "";
   const emirate = params.emirate?.trim() || "";
   const district = params.district?.trim() || "";
@@ -164,85 +170,61 @@ export default async function AdminPropertiesPage({ searchParams }: Props) {
     },
   });
 
+  const whereClause = {
+    AND: [
+      search
+        ? {
+            OR: [
+              {
+                title: {
+                  contains: search,
+                  mode: "insensitive" as const,
+                },
+              },
+              {
+                district: {
+                  contains: search,
+                  mode: "insensitive" as const,
+                },
+              },
+              {
+                emirate: {
+                  contains: search,
+                  mode: "insensitive" as const,
+                },
+              },
+              {
+                developer: {
+                  name: {
+                    contains: search,
+                    mode: "insensitive" as const,
+                  },
+                },
+              },
+            ],
+          }
+        : {},
+
+      emirate ? { emirate } : {},
+      district ? { district } : {},
+      developer ? { developerId: developer } : {},
+      type ? { type } : {},
+      bedrooms ? { bedrooms } : {},
+      status ? { status: status as any } : {},
+      approvalStatus ? { approvalStatus: approvalStatus as any } : {},
+    ],
+  };
+
+  const totalProperties = await prisma.property.count({
+    where: whereClause,
+  });
+
+  const totalPages = Math.ceil(totalProperties / pageSize);
+
   const properties = await prisma.property.findMany({
-    where: {
-      AND: [
-        search
-          ? {
-              OR: [
-                {
-                  title: {
-                    contains: search,
-                    mode: "insensitive",
-                  },
-                },
-                {
-                  district: {
-                    contains: search,
-                    mode: "insensitive",
-                  },
-                },
-                {
-                  emirate: {
-                    contains: search,
-                    mode: "insensitive",
-                  },
-                },
-                {
-                  developer: {
-                    name: {
-                      contains: search,
-                      mode: "insensitive",
-                    },
-                  },
-                },
-              ],
-            }
-          : {},
-
-        emirate
-          ? {
-              emirate,
-            }
-          : {},
-
-        district
-          ? {
-              district,
-            }
-          : {},
-
-        developer
-          ? {
-              developerId: developer,
-            }
-          : {},
-
-        type
-          ? {
-              type,
-            }
-          : {},
-
-        bedrooms
-          ? {
-              bedrooms,
-            }
-          : {},
-
-        status
-          ? {
-              status: status as any,
-            }
-          : {},
-
-        approvalStatus
-          ? {
-              approvalStatus: approvalStatus as any,
-            }
-          : {},
-      ],
-    },
+    where: whereClause,
+    skip,
+    take: pageSize,
 
     orderBy: {
       createdAt: "desc",
@@ -268,6 +250,23 @@ export default async function AdminPropertiesPage({ searchParams }: Props) {
     bedrooms ||
     status ||
     approvalStatus;
+
+  function createPageUrl(page: number) {
+    const query = new URLSearchParams();
+
+    if (search) query.set("search", search);
+    if (emirate) query.set("emirate", emirate);
+    if (district) query.set("district", district);
+    if (developer) query.set("developer", developer);
+    if (type) query.set("type", type);
+    if (bedrooms) query.set("bedrooms", bedrooms);
+    if (status) query.set("status", status);
+    if (approvalStatus) query.set("approvalStatus", approvalStatus);
+
+    query.set("page", String(page));
+
+    return `/administrator/properties?${query.toString()}`;
+  }
 
   return (
     <AdminLayout
@@ -296,6 +295,8 @@ export default async function AdminPropertiesPage({ searchParams }: Props) {
         </div>
 
         <form className="rounded-3xl border border-border bg-card p-4 shadow-xl">
+          <input type="hidden" name="page" value="1" />
+
           <div className="grid gap-4 lg:grid-cols-4">
             <div className="relative lg:col-span-2">
               <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -403,6 +404,7 @@ export default async function AdminPropertiesPage({ searchParams }: Props) {
               <option value="APPROVED">Approved</option>
               <option value="REJECTED">Rejected</option>
             </select>
+
             <button
               type="submit"
               className="rounded-2xl bg-[#EBCB4C] px-5 py-3 text-sm font-semibold text-black transition hover:opacity-90"
@@ -413,14 +415,12 @@ export default async function AdminPropertiesPage({ searchParams }: Props) {
             {hasFilters ? (
               <Link
                 href="/administrator/properties"
-                className="rounded-2xl border border-border px-5 py-3 text-sm font-semibold text-foreground transition hover:border-[#EBCB4C]/50 hover:text-[#EBCB4C]"
+                className="flex items-center justify-center rounded-2xl border border-border px-5 py-3 text-sm font-semibold text-foreground transition hover:border-[#EBCB4C]/50 hover:text-[#EBCB4C]"
               >
                 Clear Filters
               </Link>
             ) : null}
           </div>
-
-          
         </form>
 
         {properties.length === 0 ? (
@@ -451,141 +451,193 @@ export default async function AdminPropertiesPage({ searchParams }: Props) {
             </div>
           </div>
         ) : (
-          <div className="grid gap-5 md:grid-cols-2 2xl:grid-cols-3">
-            {properties.map((property) => {
-              const imageUrl =
-                property.featuredImage || property.images[0]?.url || "";
+          <>
+            <div className="flex items-center justify-between rounded-2xl border border-border bg-card px-5 py-4 text-sm text-muted-foreground">
+              <span>
+                Showing {properties.length} of {totalProperties} properties
+              </span>
 
-              return (
-                <div
-                  key={property.id}
-                  className="group overflow-hidden rounded-3xl border border-border bg-card shadow-sm transition hover:-translate-y-1 hover:border-[#EBCB4C]/40 hover:shadow-xl"
-                >
-                  <div className="flex flex-col lg:flex-row">
-                    <div className="relative h-48 bg-muted lg:h-auto lg:w-44 xl:w-48">
-                      {imageUrl ? (
-                        <Image
-                          src={imageUrl}
-                          alt={property.title}
-                          fill
-                          className="object-cover transition duration-500 group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="flex h-full min-h-48 items-center justify-center bg-muted text-xs text-muted-foreground">
-                          No Image
-                        </div>
-                      )}
+              <span>
+                Page {currentPage} of {totalPages || 1}
+              </span>
+            </div>
 
-                      <span className="absolute left-3 top-3 rounded-full bg-black/70 px-3 py-1 text-[11px] font-semibold text-white backdrop-blur">
-                        {property.category}
-                      </span>
-                    </div>
+            <div className="grid gap-5 md:grid-cols-2 2xl:grid-cols-3">
+              {properties.map((property) => {
+                const imageUrl =
+                  property.featuredImage || property.images[0]?.url || "";
 
-                    <div className="min-w-0 flex-1 p-5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <h3 className="line-clamp-1 text-lg font-bold text-foreground">
-                            {property.title}
-                          </h3>
+                return (
+                  <div
+                    key={property.id}
+                    className="group overflow-hidden rounded-3xl border border-border bg-card shadow-sm transition hover:-translate-y-1 hover:border-[#EBCB4C]/40 hover:shadow-xl"
+                  >
+                    <div className="flex flex-col lg:flex-row">
+                      <div className="relative h-48 bg-muted lg:h-auto lg:w-44 xl:w-48">
+                        {imageUrl ? (
+                          <Image
+                            src={imageUrl}
+                            alt={property.title}
+                            fill
+                            className="object-cover transition duration-500 group-hover:scale-105"
+                          />
+                        ) : (
+                          <div className="flex h-full min-h-48 items-center justify-center bg-muted text-xs text-muted-foreground">
+                            No Image
+                          </div>
+                        )}
 
-                          <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">
-                            {property.developer?.name || "No developer"}
-                          </p>
-                        </div>
-
-                        <span
-                          className={`
-                            shrink-0 rounded-full px-3 py-1 text-[11px] font-bold
-                            ${
-                              property.approvalStatus === "APPROVED"
-                                ? "bg-green-500/10 text-green-600"
-                                : property.approvalStatus === "REJECTED"
-                                  ? "bg-red-500/10 text-red-600"
-                                  : "bg-yellow-500/10 text-yellow-700"
-                            }
-                          `}
-                        >
-                          {property.approvalStatus}
+                        <span className="absolute left-3 top-3 rounded-full bg-black/70 px-3 py-1 text-[11px] font-semibold text-white backdrop-blur">
+                          {property.category}
                         </span>
                       </div>
 
-                      <p className="mt-3 text-2xl font-bold text-foreground">
-                        {formatAED(property.price)}
-                      </p>
+                      <div className="min-w-0 flex-1 p-5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <h3 className="line-clamp-1 text-lg font-bold text-foreground">
+                              {property.title}
+                            </h3>
 
-                      <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
-                        <MapPin className="h-4 w-4 shrink-0 text-[#EBCB4C]" />
-                        <span className="line-clamp-1">
-                          {property.district || "-"}
-                          {property.emirate ? `, ${property.emirate}` : ""}
-                        </span>
-                      </div>
-
-                      <div className="mt-4 grid grid-cols-3 gap-2">
-                        <div className="rounded-2xl bg-muted/60 px-3 py-2">
-                          <div className="flex items-center gap-1.5 text-[#EBCB4C]">
-                            <BedDouble className="h-4 w-4" />
-                            <span className="text-xs">Beds</span>
-                          </div>
-                          <p className="mt-1 text-sm font-semibold text-foreground">
-                            {property.bedrooms || "-"}
-                          </p>
-                        </div>
-
-                        <div className="rounded-2xl bg-muted/60 px-3 py-2">
-                          <div className="flex items-center gap-1.5 text-[#EBCB4C]">
-                            <Bath className="h-4 w-4" />
-                            <span className="text-xs">Baths</span>
-                          </div>
-                          <p className="mt-1 text-sm font-semibold text-foreground">
-                            {property.bathrooms || "-"}
-                          </p>
-                        </div>
-
-                        <div className="rounded-2xl bg-muted/60 px-3 py-2">
-                          <div className="flex items-center gap-1.5 text-[#EBCB4C]">
-                            <Ruler className="h-4 w-4" />
-                            <span className="text-xs">Size</span>
-                          </div>
-                          <p className="mt-1 text-sm font-semibold text-foreground">
-                            {property.size ? `${property.size}` : "-"}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-4">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <UserRound className="h-3.5 w-3.5" />
-                            Agent
+                            <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">
+                              {property.developer?.name || "No developer"}
+                            </p>
                           </div>
 
-                          <p className="mt-1 line-clamp-1 text-sm font-semibold text-foreground">
-                            {property.agent?.name || "Admin / CRM"}
-                          </p>
+                          <span
+                            className={`
+                              shrink-0 rounded-full px-3 py-1 text-[11px] font-bold
+                              ${
+                                property.approvalStatus === "APPROVED"
+                                  ? "bg-green-500/10 text-green-600"
+                                  : property.approvalStatus === "REJECTED"
+                                    ? "bg-red-500/10 text-red-600"
+                                    : "bg-yellow-500/10 text-yellow-700"
+                              }
+                            `}
+                          >
+                            {property.approvalStatus}
+                          </span>
                         </div>
 
-                        <Link
-                          href={`/administrator/properties/${property.id}`}
-                          className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-semibold text-foreground transition hover:border-[#EBCB4C]/50 hover:text-[#EBCB4C]"
-                        >
-                          <Eye className="h-4 w-4" />
-                          View
-                        </Link>
-                      </div>
+                        <p className="mt-3 text-2xl font-bold text-foreground">
+                          {formatAED(property.price)}
+                        </p>
 
-                      <div className="mt-3">
-                        <PropertyApprovalButtons
-                          propertyId={property.id}
-                          approvalStatus={property.approvalStatus}
-                        />
+                        <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+                          <MapPin className="h-4 w-4 shrink-0 text-[#EBCB4C]" />
+                          <span className="line-clamp-1">
+                            {property.district || "-"}
+                            {property.emirate ? `, ${property.emirate}` : ""}
+                          </span>
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-3 gap-2">
+                          <div className="rounded-2xl bg-muted/60 px-3 py-2">
+                            <div className="flex items-center gap-1.5 text-[#EBCB4C]">
+                              <BedDouble className="h-4 w-4" />
+                              <span className="text-xs">Beds</span>
+                            </div>
+                            <p className="mt-1 text-sm font-semibold text-foreground">
+                              {property.bedrooms || "-"}
+                            </p>
+                          </div>
+
+                          <div className="rounded-2xl bg-muted/60 px-3 py-2">
+                            <div className="flex items-center gap-1.5 text-[#EBCB4C]">
+                              <Bath className="h-4 w-4" />
+                              <span className="text-xs">Baths</span>
+                            </div>
+                            <p className="mt-1 text-sm font-semibold text-foreground">
+                              {property.bathrooms || "-"}
+                            </p>
+                          </div>
+
+                          <div className="rounded-2xl bg-muted/60 px-3 py-2">
+                            <div className="flex items-center gap-1.5 text-[#EBCB4C]">
+                              <Ruler className="h-4 w-4" />
+                              <span className="text-xs">Size</span>
+                            </div>
+                            <p className="mt-1 text-sm font-semibold text-foreground">
+                              {property.size ? `${property.size}` : "-"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-4">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <UserRound className="h-3.5 w-3.5" />
+                              Agent
+                            </div>
+
+                            <p className="mt-1 line-clamp-1 text-sm font-semibold text-foreground">
+                              {property.agent?.name || "Admin / CRM"}
+                            </p>
+                          </div>
+
+                          <Link
+                            href={`/administrator/properties/${property.id}`}
+                            className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-border px-3 py-2 text-xs font-semibold text-foreground transition hover:border-[#EBCB4C]/50 hover:text-[#EBCB4C]"
+                          >
+                            <Eye className="h-4 w-4" />
+                            View
+                          </Link>
+                        </div>
+
+                        <div className="mt-3">
+                          <PropertyApprovalButtons
+                            propertyId={property.id}
+                            approvalStatus={property.approvalStatus}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+
+            {totalPages > 1 ? (
+              <div className="flex flex-wrap items-center justify-center gap-3 rounded-3xl border border-border bg-card p-4 shadow-xl">
+                {currentPage > 1 ? (
+                  <Link
+                    href={createPageUrl(currentPage - 1)}
+                    className="rounded-2xl border border-border px-4 py-2 text-sm font-semibold text-foreground transition hover:border-[#EBCB4C]/50 hover:text-[#EBCB4C]"
+                  >
+                    Previous
+                  </Link>
+                ) : null}
+
+                {Array.from({ length: totalPages }).map((_, index) => {
+                  const page = index + 1;
+
+                  return (
+                    <Link
+                      key={page}
+                      href={createPageUrl(page)}
+                      className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                        page === currentPage
+                          ? "bg-[#EBCB4C] text-black"
+                          : "border border-border text-foreground hover:border-[#EBCB4C]/50 hover:text-[#EBCB4C]"
+                      }`}
+                    >
+                      {page}
+                    </Link>
+                  );
+                })}
+
+                {currentPage < totalPages ? (
+                  <Link
+                    href={createPageUrl(currentPage + 1)}
+                    className="rounded-2xl border border-border px-4 py-2 text-sm font-semibold text-foreground transition hover:border-[#EBCB4C]/50 hover:text-[#EBCB4C]"
+                  >
+                    Next
+                  </Link>
+                ) : null}
+              </div>
+            ) : null}
+          </>
         )}
       </div>
     </AdminLayout>

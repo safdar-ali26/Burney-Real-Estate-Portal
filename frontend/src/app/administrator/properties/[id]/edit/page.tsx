@@ -24,6 +24,8 @@ import AdminLayout from "@/components/admin/admin-layout";
 import { updatePropertyAction } from "@/actions/update-property";
 import { requireRole } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
+import ImageUploadField from "@/components/admin/image-upload-field";
+import MultipleImageUploadField from "@/components/admin/multiple-image-upload-field";
 
 interface Props {
   params: Promise<{
@@ -388,15 +390,13 @@ export default async function EditPropertyPage({ params }: Props) {
           </div>
 
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium text-foreground">
-              Featured Image URL
-            </label>
-
-            <input
-              name="featuredImage"
-              defaultValue={property.featuredImage || ""}
-              className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-[#EBCB4C]"
-            />
+            <div className="md:col-span-2">
+              <ImageUploadField
+                label="Featured Image"
+                name="featuredImage"
+                defaultValue={property.featuredImage || ""}
+              />
+            </div>
 
             <p className="mt-2 text-xs text-muted-foreground">
               This image will be used as the main property image.
@@ -404,20 +404,13 @@ export default async function EditPropertyPage({ params }: Props) {
           </div>
 
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium text-foreground">
-              Gallery Images URLs
-            </label>
-
-            <textarea
-              name="galleryImages"
-              rows={5}
-              defaultValue={galleryImagesValue}
-              className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-[#EBCB4C]"
-            />
-
-            <p className="mt-2 text-xs text-muted-foreground">
-              Add one image URL per line.
-            </p>
+            <div className="md:col-span-2">
+              <MultipleImageUploadField
+                label="Gallery Images"
+                name="galleryImages"
+                defaultValue={property.images.map((image) => image.url)}
+              />
+            </div>
           </div>
         </div>
 
