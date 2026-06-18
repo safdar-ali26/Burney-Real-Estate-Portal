@@ -7,6 +7,8 @@
  * Admin properties management page.
  *
  * FEATURES:
+ * - Search properties
+ * - Filter properties
  * - Compact professional property cards
  * - Featured image preview
  * - AED formatted price
@@ -25,6 +27,7 @@ import {
   MapPin,
   Plus,
   Ruler,
+  Search,
   UserRound,
 } from "lucide-react";
 
@@ -34,13 +37,217 @@ import { requireRole } from "@/lib/auth-guard";
 import { formatAED } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
-export default async function AdminPropertiesPage() {
+interface Props {
+  searchParams: Promise<{
+    search?: string;
+    emirate?: string;
+    district?: string;
+    developer?: string;
+    type?: string;
+    bedrooms?: string;
+    status?: string;
+    approvalStatus?: string;
+  }>;
+}
+
+const districts = [
+  "Al Barari",
+  "Al Barsha",
+  "Al Furjan",
+  "Al Jaddaf",
+  "Al Jaddaf Waterfront",
+  "Al Quoz 2",
+  "Al Satwa",
+  "Al Sufouh",
+  "Al Warsan",
+  "Arabian Ranches 3",
+  "Arjan",
+  "Azizi Riviera at Meydan One",
+  "Beach Front",
+  "Bukadra",
+  "Business Bay",
+  "City Of Arabia",
+  "City Walk",
+  "Damac Hills",
+  "Damac Hills 2",
+  "Damac Lagoons",
+  "Damac Riverside",
+  "Damac Suncity",
+  "DIFC (Dubai International Financial Center)",
+  "Discovery Gardens",
+  "Downtown Dubai",
+  "Dubai Creek Harbour",
+  "Dubai Design District",
+  "Dubai Expo City",
+  "Dubai Harbour",
+  "Dubai Hills",
+  "Dubai Industrial City",
+  "Dubai International City",
+  "Dubai Internet City",
+  "Dubai Investments Park",
+  "Dubai Islands",
+  "Dubai Land",
+  "Dubai Land Residence Complex",
+  "Dubai Marina",
+  "Dubai Motor City",
+  "Dubai Production City",
+  "Dubai Science Park",
+  "Dubai Silicon Oasis",
+  "Dubai South",
+  "Dubai Sports City",
+  "Dubai Studio City",
+  "Dubailand Residence Complex",
+  "Emaar South",
+  "Es Sanhaya 2",
+  "Grand Polo Club and Resort",
+  "Green Gate at Dubai Creek Harbour",
+  "Jebel Ali Freezone Extension",
+  "Jebel Ali Village",
+  "JLT (Jumeirah Lake Towers)",
+  "Jumeirah Beach Residence (JBR)",
+  "Jumeirah Golf Estates",
+  "Jumeirah Islands",
+  "Jumeirah Second",
+  "JVC (Jumeirah Village Circle)",
+  "JVT (Jumeirah Village Triangle)",
+  "Majan",
+  "Maritime City",
+  "MBR District 1",
+  "MBR District 11 (Meydan South)",
+  "Meydan (Nad Al Sheba 1)",
+  "Mina Rashid",
+  "Mirdif",
+  "MJL (Madinat Jumeirah Living)",
+  "Mudon",
+  "Nad Al Sheba Gardens",
+  "Palm Jebel Ali",
+  "Palm Jumeirah",
+  "Pearl Jumeirah",
+  "Port De La Mer",
+  "Ras Al Khor",
+  "Remraam",
+  "Safa Park",
+  "Saih Shuaib",
+  "Sobha Central",
+  "Sobha Hartland",
+  "Sobha Hartland 2",
+  "The Heights",
+  "The Oasis",
+  "The Valley",
+  "Tilal Al Ghaf",
+  "Town Square",
+  "Trade Center",
+  "Wadi Al Safa 2",
+  "Wadi Al Safa 3",
+  "Wadi Al Safa 7",
+  "World of Islands",
+  "Zabeel 1&2",
+];
+
+export default async function AdminPropertiesPage({ searchParams }: Props) {
   await requireRole("ADMIN");
 
+  const params = await searchParams;
+
+  const search = params.search?.trim() || "";
+  const emirate = params.emirate?.trim() || "";
+  const district = params.district?.trim() || "";
+  const developer = params.developer?.trim() || "";
+  const type = params.type?.trim() || "";
+  const bedrooms = params.bedrooms?.trim() || "";
+  const status = params.status?.trim() || "";
+  const approvalStatus = params.approvalStatus?.trim() || "";
+
+  const developers = await prisma.developer.findMany({
+    orderBy: {
+      name: "asc",
+    },
+  });
+
   const properties = await prisma.property.findMany({
+    where: {
+      AND: [
+        search
+          ? {
+              OR: [
+                {
+                  title: {
+                    contains: search,
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  district: {
+                    contains: search,
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  emirate: {
+                    contains: search,
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  developer: {
+                    name: {
+                      contains: search,
+                      mode: "insensitive",
+                    },
+                  },
+                },
+              ],
+            }
+          : {},
+
+        emirate
+          ? {
+              emirate,
+            }
+          : {},
+
+        district
+          ? {
+              district,
+            }
+          : {},
+
+        developer
+          ? {
+              developerId: developer,
+            }
+          : {},
+
+        type
+          ? {
+              type,
+            }
+          : {},
+
+        bedrooms
+          ? {
+              bedrooms,
+            }
+          : {},
+
+        status
+          ? {
+              status: status as any,
+            }
+          : {},
+
+        approvalStatus
+          ? {
+              approvalStatus: approvalStatus as any,
+            }
+          : {},
+      ],
+    },
+
     orderBy: {
       createdAt: "desc",
     },
+
     include: {
       agent: true,
       developer: true,
@@ -51,6 +258,16 @@ export default async function AdminPropertiesPage() {
       },
     },
   });
+
+  const hasFilters =
+    search ||
+    emirate ||
+    district ||
+    developer ||
+    type ||
+    bedrooms ||
+    status ||
+    approvalStatus;
 
   return (
     <AdminLayout
@@ -78,6 +295,134 @@ export default async function AdminPropertiesPage() {
           </Link>
         </div>
 
+        <form className="rounded-3xl border border-border bg-card p-4 shadow-xl">
+          <div className="grid gap-4 lg:grid-cols-4">
+            <div className="relative lg:col-span-2">
+              <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
+              <input
+                type="text"
+                name="search"
+                defaultValue={search}
+                placeholder="Search by title, district, emirate or developer..."
+                className="w-full rounded-2xl border border-border bg-background py-3 pl-11 pr-4 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-[#EBCB4C]"
+              />
+            </div>
+
+            <select
+              name="emirate"
+              defaultValue={emirate}
+              className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-[#EBCB4C]"
+            >
+              <option value="">All Emirates</option>
+              <option value="Dubai">Dubai</option>
+              <option value="Abu Dhabi">Abu Dhabi</option>
+              <option value="Sharjah">Sharjah</option>
+              <option value="Ajman">Ajman</option>
+              <option value="Fujairah">Fujairah</option>
+              <option value="Ras Al Khaimah">Ras Al Khaimah</option>
+              <option value="Umm Al Quwain">Umm Al Quwain</option>
+            </select>
+
+            <select
+              name="district"
+              defaultValue={district}
+              className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-[#EBCB4C]"
+            >
+              <option value="">All Districts</option>
+              {districts.map((districtItem) => (
+                <option key={districtItem} value={districtItem}>
+                  {districtItem}
+                </option>
+              ))}
+            </select>
+
+            <select
+              name="developer"
+              defaultValue={developer}
+              className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-[#EBCB4C]"
+            >
+              <option value="">All Developers</option>
+              {developers.map((developerItem) => (
+                <option key={developerItem.id} value={developerItem.id}>
+                  {developerItem.name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              name="type"
+              defaultValue={type}
+              className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-[#EBCB4C]"
+            >
+              <option value="">All Types</option>
+              <option value="Apartment">Apartment</option>
+              <option value="Villa">Villa</option>
+              <option value="Townhouse">Townhouse</option>
+              <option value="Penthouse">Penthouse</option>
+              <option value="Duplex">Duplex</option>
+              <option value="Hotel Apartment">Hotel Apartment</option>
+            </select>
+
+            <select
+              name="bedrooms"
+              defaultValue={bedrooms}
+              className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-[#EBCB4C]"
+            >
+              <option value="">All Bedrooms</option>
+              <option value="Studio">Studio</option>
+              <option value="1 BR">1 BR</option>
+              <option value="2 BR">2 BR</option>
+              <option value="3 BR">3 BR</option>
+              <option value="4 BR">4 BR</option>
+              <option value="5 BR">5 BR</option>
+              <option value="6 BR">6 BR</option>
+              <option value="7 BR">7 BR</option>
+              <option value="8 BR">8 BR</option>
+              <option value="11 BR">11 BR</option>
+            </select>
+
+            <select
+              name="status"
+              defaultValue={status}
+              className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-[#EBCB4C]"
+            >
+              <option value="">All Status</option>
+              <option value="AVAILABLE">Available</option>
+              <option value="LIMITED">Limited</option>
+              <option value="SOLD">Sold</option>
+            </select>
+
+            <select
+              name="approvalStatus"
+              defaultValue={approvalStatus}
+              className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-[#EBCB4C]"
+            >
+              <option value="">All Approval</option>
+              <option value="PENDING">Pending</option>
+              <option value="APPROVED">Approved</option>
+              <option value="REJECTED">Rejected</option>
+            </select>
+            <button
+              type="submit"
+              className="rounded-2xl bg-[#EBCB4C] px-5 py-3 text-sm font-semibold text-black transition hover:opacity-90"
+            >
+              Apply Filters
+            </button>
+
+            {hasFilters ? (
+              <Link
+                href="/administrator/properties"
+                className="rounded-2xl border border-border px-5 py-3 text-sm font-semibold text-foreground transition hover:border-[#EBCB4C]/50 hover:text-[#EBCB4C]"
+              >
+                Clear Filters
+              </Link>
+            ) : null}
+          </div>
+
+          
+        </form>
+
         {properties.length === 0 ? (
           <div className="rounded-3xl border border-border bg-card p-6 shadow-xl">
             <div className="flex min-h-[300px] flex-col items-center justify-center text-center">
@@ -86,11 +431,15 @@ export default async function AdminPropertiesPage() {
               </div>
 
               <h3 className="mt-6 text-xl font-bold text-foreground">
-                No properties found
+                {hasFilters
+                  ? "No matching properties found"
+                  : "No properties found"}
               </h3>
 
               <p className="mt-2 max-w-md text-sm text-muted-foreground">
-                Properties uploaded by agents or synced from CRM will appear here.
+                {hasFilters
+                  ? "Try changing your search or selected filters."
+                  : "Properties uploaded by agents or synced from CRM will appear here."}
               </p>
 
               <Link
@@ -113,7 +462,6 @@ export default async function AdminPropertiesPage() {
                   className="group overflow-hidden rounded-3xl border border-border bg-card shadow-sm transition hover:-translate-y-1 hover:border-[#EBCB4C]/40 hover:shadow-xl"
                 >
                   <div className="flex flex-col lg:flex-row">
-                    {/* Image */}
                     <div className="relative h-48 bg-muted lg:h-auto lg:w-44 xl:w-48">
                       {imageUrl ? (
                         <Image
@@ -133,7 +481,6 @@ export default async function AdminPropertiesPage() {
                       </span>
                     </div>
 
-                    {/* Content */}
                     <div className="min-w-0 flex-1 p-5">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">

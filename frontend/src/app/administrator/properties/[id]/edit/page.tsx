@@ -12,6 +12,7 @@
  * - Updates property in Supabase through Prisma
  * - Developer dropdown
  * - Featured image URL update
+ * - District dropdown support
  * =====================================================
  */
 
@@ -29,6 +30,100 @@ interface Props {
     id: string;
   }>;
 }
+
+const districts = [
+  "Al Barari",
+  "Al Barsha",
+  "Al Furjan",
+  "Al Jaddaf",
+  "Al Jaddaf Waterfront",
+  "Al Quoz 2",
+  "Al Satwa",
+  "Al Sufouh",
+  "Al Warsan",
+  "Arabian Ranches 3",
+  "Arjan",
+  "Azizi Riviera at Meydan One",
+  "Beach Front",
+  "Bukadra",
+  "Business Bay",
+  "City Of Arabia",
+  "City Walk",
+  "Damac Hills",
+  "Damac Hills 2",
+  "Damac Lagoons",
+  "Damac Riverside",
+  "Damac Suncity",
+  "DIFC (Dubai International Financial Center)",
+  "Discovery Gardens",
+  "Downtown Dubai",
+  "Dubai Creek Harbour",
+  "Dubai Design District",
+  "Dubai Expo City",
+  "Dubai Harbour",
+  "Dubai Hills",
+  "Dubai Industrial City",
+  "Dubai International City",
+  "Dubai Internet City",
+  "Dubai Investments Park",
+  "Dubai Islands",
+  "Dubai Land",
+  "Dubai Land Residence Complex",
+  "Dubai Marina",
+  "Dubai Motor City",
+  "Dubai Production City",
+  "Dubai Science Park",
+  "Dubai Silicon Oasis",
+  "Dubai South",
+  "Dubai Sports City",
+  "Dubai Studio City",
+  "Dubailand Residence Complex",
+  "Emaar South",
+  "Es Sanhaya 2",
+  "Grand Polo Club and Resort",
+  "Green Gate at Dubai Creek Harbour",
+  "Jebel Ali Freezone Extension",
+  "Jebel Ali Village",
+  "JLT (Jumeirah Lake Towers)",
+  "Jumeirah Beach Residence (JBR)",
+  "Jumeirah Golf Estates",
+  "Jumeirah Islands",
+  "Jumeirah Second",
+  "JVC (Jumeirah Village Circle)",
+  "JVT (Jumeirah Village Triangle)",
+  "Majan",
+  "Maritime City",
+  "MBR District 1",
+  "MBR District 11 (Meydan South)",
+  "Meydan (Nad Al Sheba 1)",
+  "Mina Rashid",
+  "Mirdif",
+  "MJL (Madinat Jumeirah Living)",
+  "Mudon",
+  "Nad Al Sheba Gardens",
+  "Palm Jebel Ali",
+  "Palm Jumeirah",
+  "Pearl Jumeirah",
+  "Port De La Mer",
+  "Ras Al Khor",
+  "Remraam",
+  "Safa Park",
+  "Saih Shuaib",
+  "Sobha Central",
+  "Sobha Hartland",
+  "Sobha Hartland 2",
+  "The Heights",
+  "The Oasis",
+  "The Valley",
+  "Tilal Al Ghaf",
+  "Town Square",
+  "Trade Center",
+  "Wadi Al Safa 2",
+  "Wadi Al Safa 3",
+  "Wadi Al Safa 7",
+  "World of Islands",
+  "Zabeel 1&2",
+];
 
 export default async function EditPropertyPage({ params }: Props) {
   await requireRole("ADMIN");
@@ -58,10 +153,7 @@ export default async function EditPropertyPage({ params }: Props) {
     },
   });
 
-  const updatePropertyWithId = updatePropertyAction.bind(
-    null,
-    property.id
-  );
+  const updatePropertyWithId = updatePropertyAction.bind(null, property.id);
 
   const galleryImagesValue = property.images
     .map((image) => image.url)
@@ -229,11 +321,18 @@ export default async function EditPropertyPage({ params }: Props) {
               District
             </label>
 
-            <input
+            <select
               name="district"
               defaultValue={property.district || ""}
               className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-foreground outline-none focus:border-[#EBCB4C]"
-            />
+            >
+              <option value="">Select District</option>
+              {districts.map((district) => (
+                <option key={district} value={district}>
+                  {district}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
