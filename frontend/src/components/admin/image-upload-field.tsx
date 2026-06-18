@@ -19,10 +19,17 @@ export default function ImageUploadField({
   const [isUploading, setIsUploading] = useState(false);
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
+  const file = event.target.files?.[0];
 
-    if (!file) return;
+  if (!file) return;
 
+  if (file.size > 5 * 1024 * 1024) {
+    alert("Image size must be less than 5MB.");
+    event.target.value = "";
+    return;
+  }
+
+  try {
     setIsUploading(true);
 
     const formData = new FormData();
@@ -30,9 +37,18 @@ export default function ImageUploadField({
 
     const result = await uploadImageAction(formData);
 
+    if (!result?.url) {
+      throw new Error("Upload failed");
+    }
+
     setImageUrl(result.url);
+  } catch (error) {
+    console.error("Image upload error:", error);
+    alert("Image upload failed. Please try again with a smaller image.");
+  } finally {
     setIsUploading(false);
   }
+}
 
   return (
     <div>

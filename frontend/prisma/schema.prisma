@@ -100,6 +100,14 @@ model User {
   password String?
   role     UserRole @default(USER)
 
+  profileImage String?
+
+  designation String?
+
+  whatsapp String?
+
+  isActive Boolean @default(true)
+
   properties      Property[]
   savedProperties SavedProperty[]
   leads           Lead[]

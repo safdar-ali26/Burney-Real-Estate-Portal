@@ -9,8 +9,9 @@
  * FEATURES:
  * - View full property details
  * - Back to properties button
- * - Edit property button
- * - Delete property button
+ * - Edit property button for manual properties
+ * - Delete property button for manual properties
+ * - CRM properties read-only mode
  * - Featured image
  * - Gallery images
  * =====================================================
@@ -18,7 +19,7 @@
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Edit } from "lucide-react";
+import { ArrowLeft, Edit, Lock } from "lucide-react";
 
 import AdminLayout from "@/components/admin/admin-layout";
 import DeletePropertyButton from "@/components/admin/delete-property-button";
@@ -57,10 +58,8 @@ export default async function PropertyDetailsPage({ params }: Props) {
     notFound();
   }
 
-  /**
-   * Bind property ID to delete server action.
-   * This action will be passed to the client delete button.
-   */
+  const isCrmProperty = property.isFromCRM;
+
   const deleteProperty = deletePropertyAction.bind(null, property.id);
 
   return (
@@ -77,17 +76,34 @@ export default async function PropertyDetailsPage({ params }: Props) {
           </Link>
 
           <div className="flex flex-wrap items-center gap-3">
-            <Link
-              href={`/administrator/properties/${property.id}/edit`}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#EBCB4C] px-5 py-3 text-sm font-semibold text-black shadow-sm transition hover:opacity-90"
-            >
-              <Edit className="h-4 w-4" />
-              Edit Property
-            </Link>
+            {isCrmProperty ? (
+              <div className="inline-flex items-center gap-2 rounded-2xl border border-[#EBCB4C]/30 bg-[#EBCB4C]/10 px-5 py-3 text-sm font-semibold text-[#EBCB4C]">
+                <Lock className="h-4 w-4" />
+                CRM Read Only
+              </div>
+            ) : (
+              <>
+                <Link
+                  href={`/administrator/properties/${property.id}/edit`}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#EBCB4C] px-5 py-3 text-sm font-semibold text-black shadow-sm transition hover:opacity-90"
+                >
+                  <Edit className="h-4 w-4" />
+                  Edit Property
+                </Link>
 
-            <DeletePropertyButton action={deleteProperty} />
+                <DeletePropertyButton action={deleteProperty} />
+              </>
+            )}
           </div>
         </div>
+
+        {/* CRM Notice */}
+        {isCrmProperty ? (
+          <div className="rounded-3xl border border-[#EBCB4C]/25 bg-[#EBCB4C]/10 p-5 text-sm text-muted-foreground">
+            This property is synced from CRM. It is read-only in the admin panel.
+            To update this property, update it in CRM and run CRM Sync again.
+          </div>
+        ) : null}
 
         {/* Featured Image */}
         <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-xl">
@@ -99,9 +115,7 @@ export default async function PropertyDetailsPage({ params }: Props) {
             />
           ) : (
             <div className="flex h-[420px] items-center justify-center bg-muted">
-              <span className="text-muted-foreground">
-                No Featured Image
-              </span>
+              <span className="text-muted-foreground">No Featured Image</span>
             </div>
           )}
         </div>
@@ -125,6 +139,7 @@ export default async function PropertyDetailsPage({ params }: Props) {
 
             <div className="mt-5 space-y-4 text-sm">
               {[
+                ["Source", property.isFromCRM ? "CRM" : "Manual"],
                 ["Price", formatAED(property.price)],
                 ["Category", property.category],
                 ["Status", property.status],
