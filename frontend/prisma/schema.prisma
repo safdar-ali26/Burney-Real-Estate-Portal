@@ -2,17 +2,8 @@
  * =====================================================
  * FILE: prisma/schema.prisma
  * PROJECT: Burney Real Estate Portal
- *
  * PURPOSE:
  * Main database schema for Burney Real Estate Portal.
- *
- * CURRENT MODULES:
- * - Users
- * - Properties
- * - Developers
- * - Property Images
- * - Saved Properties
- * - Leads
  * =====================================================
  */
 
@@ -28,57 +19,30 @@ datasource db {
   provider = "postgresql"
 }
 
-/**
- * -----------------------------------------------------
- * USER ROLES
- * -----------------------------------------------------
- */
 enum UserRole {
   ADMIN
   AGENT
   USER
 }
 
-/**
- * -----------------------------------------------------
- * PROPERTY CATEGORY
- * -----------------------------------------------------
- */
 enum PropertyCategory {
   BUY
   RENT
   OFFPLAN
 }
 
-/**
- * -----------------------------------------------------
- * PROPERTY STATUS
- * -----------------------------------------------------
- */
 enum PropertyStatus {
   AVAILABLE
   LIMITED
   SOLD
 }
 
-/**
- * -----------------------------------------------------
- * PROPERTY APPROVAL STATUS
- * -----------------------------------------------------
- * Agent uploaded properties will need admin approval.
- * -----------------------------------------------------
- */
 enum ApprovalStatus {
   PENDING
   APPROVED
   REJECTED
 }
 
-/**
- * -----------------------------------------------------
- * LEAD STATUS
- * -----------------------------------------------------
- */
 enum LeadStatus {
   NEW
   CONTACTED
@@ -87,11 +51,6 @@ enum LeadStatus {
   LOST
 }
 
-/**
- * -----------------------------------------------------
- * USER TABLE
- * -----------------------------------------------------
- */
 model User {
   id       String   @id @default(cuid())
   name     String?
@@ -101,12 +60,9 @@ model User {
   role     UserRole @default(USER)
 
   profileImage String?
-
-  designation String?
-
-  whatsapp String?
-
-  isActive Boolean @default(true)
+  designation  String?
+  whatsapp     String?
+  isActive     Boolean @default(true)
 
   properties      Property[]
   savedProperties SavedProperty[]
@@ -116,14 +72,6 @@ model User {
   updatedAt DateTime @updatedAt
 }
 
-/**
- * -----------------------------------------------------
- * DEVELOPER TABLE
- * -----------------------------------------------------
- * Stores developer information.
- * Off-plan projects will be linked with developers.
- * -----------------------------------------------------
- */
 model Developer {
   id          String  @id @default(cuid())
   name        String  @unique
@@ -138,13 +86,6 @@ model Developer {
   updatedAt DateTime @updatedAt
 }
 
-/**
- * -----------------------------------------------------
- * PROPERTY TABLE
- * -----------------------------------------------------
- * Stores Buy, Rent, and Off-plan properties.
- * -----------------------------------------------------
- */
 model Property {
   id          String           @id @default(cuid())
   title       String
@@ -170,7 +111,7 @@ model Property {
   agentId String?
   agent   User?   @relation(fields: [agentId], references: [id])
 
-  featuredImage String?
+  featuredImage   String?
   images          PropertyImage[]
   leads           Lead[]
   savedProperties SavedProperty[]
@@ -178,22 +119,88 @@ model Property {
   crmId     String? @unique
   isFromCRM Boolean @default(false)
 
+  completionDate     String?
+  constructionStatus String?
+
+  latitude  Float?
+  longitude Float?
+
+  fullAddress String?
+  sector      String?
+
+  videoReviewUrl String?
+  generalPlanUrl String?
+
+  serviceCharge String?
+  furnishing    String?
+
+  buildingCount Int?
+  unitCount     Int?
+
+  developerContactName  String?
+  developerContactPhone String?
+  developerWhatsapp     String?
+
+  paymentPlans Json?
+  amenities    Json?
+  typicalUnits Json?
+  documents    Json?
+  crmRawData   Json?
+
+  propertyAmenities PropertyAmenity[]  @relation("PropertyAmenities")
+  propertyDocuments PropertyDocument[] @relation("PropertyDocuments")
+  propertyUnits     PropertyUnit[]     @relation("PropertyUnits")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-/**
- * -----------------------------------------------------
- * PROPERTY IMAGE TABLE
- * -----------------------------------------------------
- * Stores multiple images per property.
- * -----------------------------------------------------
- */
+model PropertyAmenity {
+  id String @id @default(cuid())
+
+  propertyId String
+  property   Property @relation("PropertyAmenities", fields: [propertyId], references: [id], onDelete: Cascade)
+
+  name    String
+  iconUrl String?
+
+  displayOrder Int?
+
+  createdAt DateTime @default(now())
+}
+
+model PropertyDocument {
+  id String @id @default(cuid())
+
+  propertyId String
+  property   Property @relation("PropertyDocuments", fields: [propertyId], references: [id], onDelete: Cascade)
+
+  name String
+  url  String
+  type String?
+
+  createdAt DateTime @default(now())
+}
+
+model PropertyUnit {
+  id String @id @default(cuid())
+
+  propertyId String
+  property   Property @relation("PropertyUnits", fields: [propertyId], references: [id], onDelete: Cascade)
+
+  bedrooms Int?
+
+  area  Float?
+  price Float?
+
+  createdAt DateTime @default(now())
+}
+
 model PropertyImage {
-  id         String   @id @default(cuid())
-  url        String
-  alt        String?
-  order      Int      @default(0)
+  id    String  @id @default(cuid())
+  url   String
+  alt   String?
+  order Int     @default(0)
 
   propertyId String
   property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
@@ -201,18 +208,11 @@ model PropertyImage {
   createdAt DateTime @default(now())
 }
 
-/**
- * -----------------------------------------------------
- * SAVED PROPERTY TABLE
- * -----------------------------------------------------
- * Allows registered users to save/favorite properties.
- * -----------------------------------------------------
- */
 model SavedProperty {
   id String @id @default(cuid())
 
   userId String
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   propertyId String
   property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
@@ -222,16 +222,6 @@ model SavedProperty {
   @@unique([userId, propertyId])
 }
 
-/**
- * -----------------------------------------------------
- * LEAD TABLE
- * -----------------------------------------------------
- * Stores all property inquiries.
- *
- * Off-plan leads go to admin.
- * Buy/Rent leads go to uploading agent.
- * -----------------------------------------------------
- */
 model Lead {
   id String @id @default(cuid())
 
@@ -249,6 +239,24 @@ model Lead {
   assignedTo   User?   @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
 
   source String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SiteSetting {
+  id String @id @default(cuid())
+
+  companyName  String?
+  companyEmail String?
+  companyPhone String?
+  website      String?
+  address      String?
+
+  adminWhatsapp String?
+  adminEmail    String?
+
+  logoUrl String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -1,22 +1,3 @@
-/**
- * =====================================================
- * FILE: src/app/administrator/properties/[id]/page.tsx
- * PROJECT: Burney Real Estate Portal
- *
- * PURPOSE:
- * Property details page.
- *
- * FEATURES:
- * - View full property details
- * - Back to properties button
- * - Edit property button for manual properties
- * - Delete property button for manual properties
- * - CRM properties read-only mode
- * - Featured image
- * - Gallery images
- * =====================================================
- */
-
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Edit, Lock } from "lucide-react";
@@ -25,7 +6,6 @@ import AdminLayout from "@/components/admin/admin-layout";
 import DeletePropertyButton from "@/components/admin/delete-property-button";
 import { deletePropertyAction } from "@/actions/delete-property";
 import { requireRole } from "@/lib/auth-guard";
-import { formatAED } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
 interface Props {
@@ -40,16 +20,19 @@ export default async function PropertyDetailsPage({ params }: Props) {
   const { id } = await params;
 
   const property = await prisma.property.findUnique({
-    where: {
-      id,
-    },
+    where: { id },
     include: {
       developer: true,
       agent: true,
       images: {
-        orderBy: {
-          order: "asc",
-        },
+        orderBy: { order: "asc" },
+      },
+      propertyAmenities: {
+        orderBy: { displayOrder: "asc" },
+      },
+      propertyDocuments: true,
+      propertyUnits: {
+        orderBy: { bedrooms: "asc" },
       },
     },
   });
@@ -58,14 +41,12 @@ export default async function PropertyDetailsPage({ params }: Props) {
     notFound();
   }
 
-  const isCrmProperty = property.isFromCRM;
-
   const deleteProperty = deletePropertyAction.bind(null, property.id);
 
   return (
     <AdminLayout title={property.title} subtitle="Property Details">
       <div className="space-y-6">
-        {/* Page actions */}
+        {/* Top Actions */}
         <div className="flex flex-col justify-between gap-4 rounded-3xl border border-border bg-card p-5 shadow-xl md:flex-row md:items-center">
           <Link
             href="/administrator/properties"
@@ -76,7 +57,7 @@ export default async function PropertyDetailsPage({ params }: Props) {
           </Link>
 
           <div className="flex flex-wrap items-center gap-3">
-            {isCrmProperty ? (
+            {property.isFromCRM ? (
               <div className="inline-flex items-center gap-2 rounded-2xl border border-[#EBCB4C]/30 bg-[#EBCB4C]/10 px-5 py-3 text-sm font-semibold text-[#EBCB4C]">
                 <Lock className="h-4 w-4" />
                 CRM Read Only
@@ -97,95 +78,172 @@ export default async function PropertyDetailsPage({ params }: Props) {
           </div>
         </div>
 
-        {/* CRM Notice */}
-        {isCrmProperty ? (
-          <div className="rounded-3xl border border-[#EBCB4C]/25 bg-[#EBCB4C]/10 p-5 text-sm text-muted-foreground">
-            This property is synced from CRM. It is read-only in the admin panel.
-            To update this property, update it in CRM and run CRM Sync again.
-          </div>
-        ) : null}
-
-        {/* Featured Image */}
-        <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-xl">
-          {property.featuredImage ? (
-            <img
-              src={property.featuredImage}
-              alt={property.title}
-              className="h-[420px] w-full object-cover"
-            />
-          ) : (
-            <div className="flex h-[420px] items-center justify-center bg-muted">
-              <span className="text-muted-foreground">No Featured Image</span>
-            </div>
-          )}
-        </div>
-
-        {/* Main Info */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="rounded-3xl border border-border bg-card p-6 shadow-xl lg:col-span-2">
-            <h2 className="text-2xl font-bold text-foreground">
-              {property.title}
-            </h2>
-
-            <p className="mt-4 whitespace-pre-line leading-7 text-muted-foreground">
-              {property.description || "No description available."}
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-border bg-card p-6 shadow-xl">
-            <h3 className="font-semibold text-foreground">
-              Property Information
-            </h3>
-
-            <div className="mt-5 space-y-4 text-sm">
-              {[
-                ["Source", property.isFromCRM ? "CRM" : "Manual"],
-                ["Price", formatAED(property.price)],
-                ["Category", property.category],
-                ["Status", property.status],
-                ["Approval", property.approvalStatus],
-                ["Bedrooms", property.bedrooms || "-"],
-                ["Bathrooms", property.bathrooms || "-"],
-                ["Size", property.size ? `${property.size} SQFT` : "-"],
-                ["Emirate", property.emirate || "-"],
-                ["District", property.district || "-"],
-                ["Type", property.type || "-"],
-                ["Developer", property.developer?.name || "-"],
-                ["Agent", property.agent?.name || "Admin / CRM"],
-              ].map(([label, value]) => (
-                <div key={label} className="flex justify-between gap-4">
-                  <span className="text-muted-foreground">{label}</span>
-                  <span className="text-right font-medium text-foreground">
-                    {value}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Gallery */}
-        <div className="rounded-3xl border border-border bg-card p-6 shadow-xl">
-          <h3 className="mb-5 text-xl font-semibold text-foreground">
-            Property Gallery
-          </h3>
-
-          {property.images.length === 0 ? (
-            <p className="text-muted-foreground">
-              No gallery images available.
-            </p>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-3">
-              {property.images.map((image) => (
+        {/* 80 / 20 Layout */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "63% 35%",
+            gap: "16px",
+            width: "100%",
+          }}
+        >
+          {/* Left 80% */}
+          <main style={{ width: "100%" }} className="space-y-4">
+            <section
+              style={{
+                position: "relative",
+                overflow: "hidden",
+                borderRadius: "28px",
+              }}
+              className="border border-border bg-card shadow-xl"
+            >
+              {property.featuredImage ? (
                 <img
-                  key={image.id}
-                  src={image.url}
-                  alt=""
-                  className="h-56 w-full rounded-2xl object-cover"
+                  src={property.featuredImage}
+                  alt={property.title}
+                  style={{
+                    height: "460px",
+                    width: "100%",
+                    objectFit: "cover",
+                    display: "block",
+                  }}
                 />
-              ))}
+              ) : (
+                <div className="flex h-[460px] items-center justify-center bg-muted text-muted-foreground">
+                  No Featured Image
+                </div>
+              )}
+
+              <div
+                style={{
+                  position: "absolute",
+                  top: "24px",
+                  left: "24px",
+                  zIndex: 999,
+                  display: "flex",
+                  gap: "10px",
+                }}
+              >
+                {[
+                  ["Availability", property.status],
+                  ["Handover", property.completionDate || "TBA"],
+                ].map(([label, value]) => (
+                  <div
+                    key={label}
+                    style={{
+                      background: "rgba(255,255,255,0.14)",
+                      border: "1px solid rgba(235,203,76,0.55)",
+                      borderRadius: "999px",
+                      padding: "2px 16px",
+                      color: "white",
+                      backdropFilter: "blur(18px)",
+                      boxShadow: "0 12px 35px rgba(0,0,0,0.25)",
+                    }}
+                  >
+                    <span
+                      style={{
+                        color: "#fff",
+                        fontSize: "10px",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="w-full rounded-3xl border border-border bg-card p-6 shadow-xl">
+              <h2 className="text-xl font-bold text-foreground">
+                Left Section 80%
+              </h2>
+
+              <p className="mt-2 text-sm text-muted-foreground">
+                Yahan left side content sections add honge.
+              </p>
+            </section>
+          </main>
+
+          {/* Right 20% */}
+          <aside style={{ width: "100%" }}>
+            <div className="sticky top-6 rounded-3xl border border-border bg-card p-6 shadow-xl">
+              <h2 className="text-2xl font-bold text-foreground">
+                {property.title}
+              </h2>
+
+              <div className="mt-4 flex items-center gap-2 text-muted-foreground">
+                <span>
+                  {property.district || "-"}
+                  {property.emirate ? `, ${property.emirate}` : ""}
+                </span>
+              </div>
+
+              <div className="my-5 border-t border-border" />
+
+              <div className="space-y-5">
+                <div>
+                  <p className="text-sm text-muted-foreground">Price</p>
+                  <p className="mt-1 text-xl font-bold text-[#EBCB4C]">
+                    {property.price
+                      ? `AED ${Number(property.price).toLocaleString()}`
+                      : "Price on Request"}
+                  </p>
+                </div>
+
+                <div className="border-t border-border pt-5">
+                  <p className="text-sm text-muted-foreground">Property Type</p>
+                  <p className="mt-1 font-semibold">{property.type || "-"}</p>
+                </div>
+
+                <div className="border-t border-border pt-5">
+                  <p className="text-sm text-muted-foreground">Developer</p>
+                  <p className="mt-1 font-semibold">
+                    {property.developer?.name || "-"}
+                  </p>
+                </div>
+
+                <div className="border-t border-border pt-5">
+                  <p className="text-sm text-muted-foreground">Bedrooms</p>
+                  <p className="mt-1 font-semibold">
+                    {property.bedrooms || "-"}
+                  </p>
+                </div>
+
+                <div className="border-t border-border pt-5">
+                  <p className="text-sm text-muted-foreground">Size</p>
+                  <p className="mt-1 font-semibold">
+                    {property.size
+                      ? `${property.size.toLocaleString()} SQFT`
+                      : "-"}
+                  </p>
+                </div>
+
+                <div className="border-t border-border pt-5">
+                  <p className="text-sm text-muted-foreground">Payment Plan</p>
+                  <p className="mt-1 font-semibold">
+                    {Array.isArray(property.paymentPlans)
+                      ? `${property.paymentPlans.length} Plans Available`
+                      : "Available"}
+                  </p>
+                </div>
+
+                <div className="border-t border-border pt-5">
+                  <p className="text-sm text-muted-foreground">Availability</p>
+                  <p className="mt-1 font-semibold text-green-500">
+                    {property.status}
+                  </p>
+                </div>
+
+                <div className="border-t border-border pt-5">
+                  <p className="text-sm text-muted-foreground">Handover</p>
+                  <p className="mt-1 font-semibold">
+                    {property.completionDate || "TBA"}
+                  </p>
+                </div>
+              </div>
             </div>
-          )}
+          </aside>
         </div>
       </div>
     </AdminLayout>
