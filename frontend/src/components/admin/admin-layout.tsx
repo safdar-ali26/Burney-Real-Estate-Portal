@@ -1,13 +1,3 @@
-/**
- * =====================================================
- * FILE: src/components/admin/admin-layout.tsx
- * PROJECT: Burney Real Estate Portal
- *
- * PURPOSE:
- * Premium theme-aware admin dashboard layout.
- * =====================================================
- */
-
 import { Search } from "lucide-react";
 import AdminSidebar from "@/components/admin/admin-sidebar";
 import ThemeToggle from "@/components/theme/theme-toggle";
@@ -24,10 +14,10 @@ export default function AdminLayout({
   subtitle?: string;
 }) {
   return (
-    <main className="flex min-h-screen w-full max-w-full overflow-x-hidden bg-background text-foreground">
+    <main className="flex min-h-screen w-full bg-background text-foreground">
       <AdminSidebar />
 
-      <section className="min-w-0 flex-1 overflow-x-hidden">
+      <section className="min-w-0 flex-1">
         <header className="sticky top-0 z-30 border-b border-border bg-background/80 px-8 py-5 backdrop-blur-xl">
           <div className="flex items-center justify-between gap-6">
             <div>
@@ -62,7 +52,7 @@ export default function AdminLayout({
           </div>
         </header>
 
-        <div className="w-full max-w-full overflow-x-hidden p-8">{children}</div>
+        <div className="w-full p-8">{children}</div>
       </section>
     </main>
   );
