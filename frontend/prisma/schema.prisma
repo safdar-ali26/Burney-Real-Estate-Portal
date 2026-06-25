@@ -67,6 +67,31 @@ model User {
   properties      Property[]
   savedProperties SavedProperty[]
   leads           Lead[]
+  preference      UserPreference?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UserPreference {
+  id String @id @default(cuid())
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  preferredEmirate      String?
+  preferredDistrict     String?
+  preferredPropertyType String?
+  preferredBedrooms     String?
+
+  minBudget Float?
+  maxBudget Float?
+
+  buyingPurpose     String?
+  contactPreference String?
+
+  emailAlerts    Boolean @default(true)
+  whatsappAlerts Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
