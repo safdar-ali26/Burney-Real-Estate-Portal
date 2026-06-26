@@ -97,6 +97,25 @@ model UserPreference {
   updatedAt DateTime @updatedAt
 }
 
+model SignupOtp {
+  id String @id @default(cuid())
+
+  email     String @unique
+  firstName String
+  lastName  String
+  phone     String?
+  password  String
+
+  otp       String
+  expiresAt DateTime
+  attempts  Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+
 model Developer {
   id          String  @id @default(cuid())
   name        String  @unique
@@ -205,6 +224,18 @@ model PropertyDocument {
   type String?
 
   createdAt DateTime @default(now())
+}
+
+model PasswordResetToken {
+  id String @id @default(cuid())
+
+  email     String
+  token     String @unique
+  expiresAt DateTime
+  used      Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model PropertyUnit {
