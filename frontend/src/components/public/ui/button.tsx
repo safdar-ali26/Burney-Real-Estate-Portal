@@ -14,11 +14,12 @@ export default function PublicButton({
   className?: string;
 }) {
   const base =
-    "inline-flex items-center justify-center rounded-2xl px-6 py-3 text-sm font-bold transition";
+    "inline-flex items-center justify-center rounded-xl px-5 py-2.5 text-xs font-bold transition";
 
   const variants = {
     primary: "bg-[#EBCB4C] text-black hover:opacity-90",
-    secondary: "bg-white/10 text-white hover:bg-[#EBCB4C]/10 hover:text-[#EBCB4C]",
+    secondary:
+      "bg-white/10 text-white hover:bg-[#EBCB4C]/10 hover:text-[#EBCB4C]",
     outline:
       "border border-[#EBCB4C]/40 text-[#EBCB4C] hover:bg-[#EBCB4C] hover:text-black",
   };
