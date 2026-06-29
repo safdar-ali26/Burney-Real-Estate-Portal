@@ -1,17 +1,23 @@
-import Container from "@/components/public/ui/container";
-import Section from "@/components/public/ui/section";
-import SectionHeading from "@/components/public/ui/heading";
+import AboutCTA from "@/components/public/about/about-cta";
+import AboutHero from "@/components/public/about/about-hero";
+import CompanyIntro from "@/components/public/about/company-intro";
+import CompanyTimeline from "@/components/public/about/company-timeline";
+import MeetAgents from "@/components/public/about/meet-agents";
+import OfficeExperience from "@/components/public/about/office-experience";
+import OurProcess from "@/components/public/about/our-process";
+import TrustedDevelopers from "@/components/public/about/trusted-developers";
 
 export default function AboutPage() {
   return (
-    <Section>
-      <Container>
-        <SectionHeading
-          badge="About Burney"
-          title="Dubai Real Estate Built Around Trust"
-          description="Burney Real Estate LLC connects buyers, sellers, landlords, tenants and investors with premium Dubai property opportunities."
-        />
-      </Container>
-    </Section>
+    <>
+      <AboutHero />
+      <CompanyIntro />
+      <CompanyTimeline />
+      <MeetAgents />
+      <OurProcess />
+      <TrustedDevelopers />
+      <OfficeExperience />
+      <AboutCTA />
+    </>
   );
 }
