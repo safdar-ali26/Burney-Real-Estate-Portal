@@ -33,8 +33,6 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "reelly-backend.s3.amazonaws.com",
       },
-
-      // Off Plan Images
       {
         protocol: "https",
         hostname: "offplan-uploads-prod.s3.ap-south-1.amazonaws.com",

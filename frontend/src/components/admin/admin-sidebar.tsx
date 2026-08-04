@@ -20,13 +20,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
+  BookOpenText,
   Building2,
   ChevronRight,
   CircleDot,
+  FolderTree,
   Home,
   Landmark,
   LayoutDashboard,
   Settings,
+  Tags,
   Users,
   UserCog,
 } from "lucide-react";
@@ -55,8 +58,24 @@ const navigationGroups = [
     title: "Property Management",
     links: [
       { label: "Properties", href: "/administrator/properties", icon: Home },
-      { label: "Developers", href: "/administrator/developers", icon: Building2 },
+      {
+        label: "Developers",
+        href: "/administrator/developers",
+        icon: Building2,
+      },
       { label: "CRM Sync", href: "/administrator/crm-sync", icon: Landmark },
+    ],
+  },
+  {
+    title: "Content Management",
+    links: [
+      { label: "Blogs", href: "/administrator/blogs", icon: BookOpenText },
+      {
+        label: "Categories",
+        href: "/administrator/blog-categories",
+        icon: FolderTree,
+      },
+      { label: "Tags", href: "/administrator/blog-tags", icon: Tags },
     ],
   },
   {
@@ -216,9 +235,7 @@ export default function AdminSidebar() {
 
         {/* Bottom Status Card */}
         <div className="mt-8 rounded-3xl border border-[#EBCB4C]/20 bg-[#EBCB4C]/10 p-5">
-          <p className="text-sm font-semibold text-[#EBCB4C]">
-            Portal Status
-          </p>
+          <p className="text-sm font-semibold text-[#EBCB4C]">Portal Status</p>
 
           <p className="mt-2 text-xs leading-5 text-muted-foreground">
             Authentication active. Database connected. CRM sync pending.

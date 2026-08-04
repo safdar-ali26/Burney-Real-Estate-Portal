@@ -1,24 +1,276 @@
-/**
- * =====================================================
- * FILE: prisma/schema.prisma
- * PROJECT: Burney Real Estate Portal
- * PURPOSE:
- * Main database schema for Burney Real Estate Portal.
- * =====================================================
- */
-
 generator client {
   provider = "prisma-client-js"
 }
 
-/**
- * Prisma 7:
- * Database connection URL is managed from prisma.config.ts
- */
 datasource db {
   provider = "postgresql"
 }
 
+model User {
+  id              String          @id @default(cuid())
+  name            String?
+  email           String          @unique
+  phone           String?
+  password        String?
+  role            UserRole        @default(USER)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  designation     String?
+  isActive        Boolean         @default(true)
+  profileImage    String?
+  whatsapp        String?
+  languages       String[]        @default([])
+  blogs           Blog[]
+  leads           Lead[]
+  properties      Property[]
+  savedProperties SavedProperty[]
+  preference      UserPreference?
+}
+
+model UserPreference {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  preferredEmirate      String?
+  preferredDistrict     String?
+  preferredPropertyType String?
+  preferredBedrooms     String?
+  minBudget             Float?
+  maxBudget             Float?
+  buyingPurpose         String?
+  contactPreference     String?
+  emailAlerts           Boolean  @default(true)
+  whatsappAlerts        Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SignupOtp {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  firstName String
+  lastName  String
+  phone     String?
+  password  String
+  otp       String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Developer {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  slug        String     @unique
+  logo        String?
+  description String?
+  website     String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  properties  Property[]
+}
+
+model Property {
+  id                    String             @id @default(cuid())
+  title                 String
+  slug                  String             @unique
+  description           String?
+  category              PropertyCategory
+  status                PropertyStatus     @default(AVAILABLE)
+  price                 Float?
+  bedrooms              String?
+  bathrooms             Int?
+  size                  Float?
+  emirate               String?
+  district              String?
+  type                  String?
+  agentId               String?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  approvalStatus        ApprovalStatus     @default(PENDING)
+  crmId                 String?            @unique
+  developerId           String?
+  isFromCRM             Boolean            @default(false)
+  featuredImage         String?
+  amenities             Json?
+  buildingCount         Int?
+  completionDate        String?
+  constructionStatus    String?
+  crmRawData            Json?
+  developerContactName  String?
+  developerContactPhone String?
+  developerWhatsapp     String?
+  documents             Json?
+  fullAddress           String?
+  furnishing            String?
+  generalPlanUrl        String?
+  latitude              Float?
+  longitude             Float?
+  paymentPlans          Json?
+  sector                String?
+  serviceCharge         String?
+  typicalUnits          Json?
+  unitCount             Int?
+  videoReviewUrl        String?
+  leads                 Lead[]
+  agent                 User?              @relation(fields: [agentId], references: [id])
+  developer             Developer?         @relation(fields: [developerId], references: [id])
+  propertyAmenities     PropertyAmenity[]  @relation("PropertyAmenities")
+  propertyDocuments     PropertyDocument[] @relation("PropertyDocuments")
+  images                PropertyImage[]
+  propertyUnits         PropertyUnit[]     @relation("PropertyUnits")
+  savedProperties       SavedProperty[]
+}
+
+model PropertyAmenity {
+  id           String   @id @default(cuid())
+  propertyId   String
+  name         String
+  iconUrl      String?
+  displayOrder Int?
+  createdAt    DateTime @default(now())
+  property     Property @relation("PropertyAmenities", fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model PropertyDocument {
+  id         String   @id @default(cuid())
+  propertyId String
+  name       String
+  url        String
+  type       String?
+  createdAt  DateTime @default(now())
+  property   Property @relation("PropertyDocuments", fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PropertyUnit {
+  id         String   @id @default(cuid())
+  propertyId String
+  bedrooms   Int?
+  area       Float?
+  price      Float?
+  createdAt  DateTime @default(now())
+  property   Property @relation("PropertyUnits", fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model PropertyImage {
+  id         String   @id @default(cuid())
+  url        String
+  alt        String?
+  order      Int      @default(0)
+  propertyId String
+  createdAt  DateTime @default(now())
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model SavedProperty {
+  id         String   @id @default(cuid())
+  userId     String
+  propertyId String
+  createdAt  DateTime @default(now())
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, propertyId])
+}
+
+model Lead {
+  id           String     @id @default(cuid())
+  name         String
+  email        String?
+  phone        String
+  message      String?
+  status       LeadStatus @default(NEW)
+  propertyId   String?
+  assignedToId String?
+  source       String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  assignedTo   User?      @relation(fields: [assignedToId], references: [id])
+  property     Property?  @relation(fields: [propertyId], references: [id])
+}
+
+model SiteSetting {
+  id            String   @id @default(cuid())
+  companyName   String?
+  companyEmail  String?
+  companyPhone  String?
+  website       String?
+  address       String?
+  adminWhatsapp String?
+  adminEmail    String?
+  logoUrl       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Blog {
+  id              String          @id @default(cuid())
+  title           String
+  slug            String          @unique
+  excerpt         String?
+  content         String
+  featuredImage   String?
+  status          BlogStatus      @default(DRAFT)
+  isFeatured      Boolean         @default(false)
+  publishedAt     DateTime?
+  metaTitle       String?
+  metaDescription String?
+  ogImage         String?
+  canonicalUrl    String?
+  readTime        Int?
+  views           Int             @default(0)
+  authorId        String?
+  categoryId      String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  author          User?           @relation(fields: [authorId], references: [id])
+  category        BlogCategory?   @relation(fields: [categoryId], references: [id])
+  tags            BlogTagOnBlog[]
+}
+
+model BlogCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  blogs       Blog[]
+}
+
+model BlogTag {
+  id        String          @id @default(cuid())
+  name      String          @unique
+  slug      String          @unique
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  blogs     BlogTagOnBlog[]
+}
+
+model BlogTagOnBlog {
+  blogId     String
+  tagId      String
+  assignedAt DateTime @default(now())
+  blog       Blog     @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  tag        BlogTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([blogId, tagId])
+}
+
+/// *
+///  * Prisma 7:
+///  * Database connection URL is managed from prisma.config.ts
 enum UserRole {
   ADMIN
   AGENT
@@ -51,269 +303,8 @@ enum LeadStatus {
   LOST
 }
 
-model User {
-  id       String   @id @default(cuid())
-  name     String?
-  email    String   @unique
-  phone    String?
-  password String?
-  role     UserRole @default(USER)
-
-  profileImage String?
-  designation  String?
-  whatsapp     String?
-  isActive     Boolean @default(true)
-
-  properties      Property[]
-  savedProperties SavedProperty[]
-  leads           Lead[]
-  preference      UserPreference?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model UserPreference {
-  id String @id @default(cuid())
-
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  preferredEmirate      String?
-  preferredDistrict     String?
-  preferredPropertyType String?
-  preferredBedrooms     String?
-
-  minBudget Float?
-  maxBudget Float?
-
-  buyingPurpose     String?
-  contactPreference String?
-
-  emailAlerts    Boolean @default(true)
-  whatsappAlerts Boolean @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model SignupOtp {
-  id String @id @default(cuid())
-
-  email     String @unique
-  firstName String
-  lastName  String
-  phone     String?
-  password  String
-
-  otp       String
-  expiresAt DateTime
-  attempts  Int @default(0)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-
-
-model Developer {
-  id          String  @id @default(cuid())
-  name        String  @unique
-  slug        String  @unique
-  logo        String?
-  description String?
-  website     String?
-
-  properties Property[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Property {
-  id          String           @id @default(cuid())
-  title       String
-  slug        String           @unique
-  description String?
-  category    PropertyCategory
-  status      PropertyStatus   @default(AVAILABLE)
-
-  approvalStatus ApprovalStatus @default(PENDING)
-
-  price     Float?
-  bedrooms  String?
-  bathrooms Int?
-  size      Float?
-
-  emirate  String?
-  district String?
-  type     String?
-
-  developerId String?
-  developer   Developer? @relation(fields: [developerId], references: [id])
-
-  agentId String?
-  agent   User?   @relation(fields: [agentId], references: [id])
-
-  featuredImage   String?
-  images          PropertyImage[]
-  leads           Lead[]
-  savedProperties SavedProperty[]
-
-  crmId     String? @unique
-  isFromCRM Boolean @default(false)
-
-  completionDate     String?
-  constructionStatus String?
-
-  latitude  Float?
-  longitude Float?
-
-  fullAddress String?
-  sector      String?
-
-  videoReviewUrl String?
-  generalPlanUrl String?
-
-  serviceCharge String?
-  furnishing    String?
-
-  buildingCount Int?
-  unitCount     Int?
-
-  developerContactName  String?
-  developerContactPhone String?
-  developerWhatsapp     String?
-
-  paymentPlans Json?
-  amenities    Json?
-  typicalUnits Json?
-  documents    Json?
-  crmRawData   Json?
-
-  propertyAmenities PropertyAmenity[]  @relation("PropertyAmenities")
-  propertyDocuments PropertyDocument[] @relation("PropertyDocuments")
-  propertyUnits     PropertyUnit[]     @relation("PropertyUnits")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model PropertyAmenity {
-  id String @id @default(cuid())
-
-  propertyId String
-  property   Property @relation("PropertyAmenities", fields: [propertyId], references: [id], onDelete: Cascade)
-
-  name    String
-  iconUrl String?
-
-  displayOrder Int?
-
-  createdAt DateTime @default(now())
-}
-
-model PropertyDocument {
-  id String @id @default(cuid())
-
-  propertyId String
-  property   Property @relation("PropertyDocuments", fields: [propertyId], references: [id], onDelete: Cascade)
-
-  name String
-  url  String
-  type String?
-
-  createdAt DateTime @default(now())
-}
-
-model PasswordResetToken {
-  id String @id @default(cuid())
-
-  email     String
-  token     String @unique
-  expiresAt DateTime
-  used      Boolean @default(false)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model PropertyUnit {
-  id String @id @default(cuid())
-
-  propertyId String
-  property   Property @relation("PropertyUnits", fields: [propertyId], references: [id], onDelete: Cascade)
-
-  bedrooms Int?
-
-  area  Float?
-  price Float?
-
-  createdAt DateTime @default(now())
-}
-
-model PropertyImage {
-  id    String  @id @default(cuid())
-  url   String
-  alt   String?
-  order Int     @default(0)
-
-  propertyId String
-  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-}
-
-model SavedProperty {
-  id String @id @default(cuid())
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  propertyId String
-  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@unique([userId, propertyId])
-}
-
-model Lead {
-  id String @id @default(cuid())
-
-  name    String
-  email   String?
-  phone   String
-  message String?
-
-  status LeadStatus @default(NEW)
-
-  propertyId String?
-  property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
-
-  assignedToId String?
-  assignedTo   User?   @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
-
-  source String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model SiteSetting {
-  id String @id @default(cuid())
-
-  companyName  String?
-  companyEmail String?
-  companyPhone String?
-  website      String?
-  address      String?
-
-  adminWhatsapp String?
-  adminEmail    String?
-
-  logoUrl String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum BlogStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
 }

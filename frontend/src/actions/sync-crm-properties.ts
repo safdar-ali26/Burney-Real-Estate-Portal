@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 
+const LEADRAT_BASE_URL = "https://projectsapi.leadrat.com/api/public/listings";
+
 function createSlug(value: string) {
   return value
     .toLowerCase()
@@ -13,13 +15,168 @@ function createSlug(value: string) {
     .replace(/(^-|-$)+/g, "");
 }
 
+function pick(...values: any[]) {
+  return values.find(
+    (value) => value !== undefined && value !== null && value !== "",
+  );
+}
+
+function toNumber(value: any) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function getTitle(project: any) {
+  return String(
+    pick(
+      project.name,
+      project.projectName,
+      project.title,
+      project.displayName,
+      "Untitled CRM Project",
+    ),
+  );
+}
+
+function getDeveloperName(project: any) {
+  return String(
+    pick(
+      project.developer?.name,
+      project.developerName,
+      project.developer,
+      "Unknown Developer",
+    ),
+  );
+}
+
+function getGalleryImages(project: any) {
+  const images = pick(
+    project.galleryImages,
+    project.gallery,
+    project.images,
+    project.media,
+    [],
+  );
+
+  if (!Array.isArray(images)) return [];
+
+  return images
+    .map((image: any, index: number) => ({
+      url: pick(
+        image.imageFallbackUrl,
+        image.imageUrl,
+        image.fallbackUrl,
+        image.url,
+        image.src,
+      ),
+      alt: pick(image.category, image.alt, image.name, null),
+      order: Number(pick(image.displayOrder, image.order, index)),
+    }))
+    .filter((image: any) => Boolean(image.url));
+}
+
+function getFeaturedImage(project: any, galleryImages: any[]) {
+  return String(
+    pick(
+      project.coverImageFallbackUrl,
+      project.coverImageUrl,
+      project.coverImage,
+      project.mainImage,
+      project.image,
+      project.thumbnail,
+      galleryImages[0]?.url,
+      "",
+    ),
+  );
+}
+
+function getPrice(project: any) {
+  const directPrice = toNumber(
+    pick(
+      project.minPrice,
+      project.price,
+      project.startingPrice,
+      project.priceFrom,
+      project.pricing?.minPrice?.aed,
+      project.pricing?.minPrice,
+      project.priceRange?.min,
+    ),
+  );
+
+  if (directPrice && directPrice > 0) return directPrice;
+
+  const typicalUnits = pick(project.typicalUnits, project.units, []);
+
+  if (Array.isArray(typicalUnits)) {
+    const prices: number[] = typicalUnits
+      .map((unit: any) =>
+        toNumber(pick(unit.price, unit.minPrice, unit.priceFrom)),
+      )
+      .filter((price: number | null): price is number => {
+        return price !== null && price > 0;
+      });
+
+    if (prices.length > 0) return Math.min(...prices);
+  }
+
+  const bedroomGroups = project.unitSummary?.bedroomGroups || [];
+
+  if (Array.isArray(bedroomGroups)) {
+    const prices: number[] = bedroomGroups
+      .map((group: any) => toNumber(pick(group.minPrice, group.price)))
+      .filter((price: number | null): price is number => {
+        return price !== null && price > 0;
+      });
+
+    if (prices.length > 0) return Math.min(...prices);
+  }
+
+  return null;
+}
+
+function getSize(project: any) {
+  const directSize = toNumber(
+    pick(
+      project.minSize,
+      project.size,
+      project.area,
+      project.units?.minArea?.sqft,
+      project.areaRange?.min,
+    ),
+  );
+
+  if (directSize && directSize > 0) return directSize;
+
+  const typicalUnits = pick(project.typicalUnits, project.units, []);
+
+  if (Array.isArray(typicalUnits)) {
+    const areas: number[] = typicalUnits
+      .map((unit: any) => toNumber(pick(unit.area, unit.size, unit.sqft)))
+      .filter((area: number | null): area is number => {
+        return area !== null && area > 0;
+      });
+
+    if (areas.length > 0) return Math.min(...areas);
+  }
+
+  return null;
+}
+
 function getBedroomLabel(project: any) {
-  const typicalUnits = project?.typicalUnits || [];
+  const directBedrooms = pick(
+    project.bedrooms,
+    project.bedroom,
+    project.bedroomCount,
+  );
+
+  if (directBedrooms) return String(directBedrooms);
+
+  const typicalUnits = pick(project.typicalUnits, []);
 
   if (Array.isArray(typicalUnits) && typicalUnits.length > 0) {
-    const bedrooms = typicalUnits
-      .map((unit: any) => unit.bedrooms)
-      .filter((value: any) => value !== null && value !== undefined);
+    const bedrooms: number[] = typicalUnits
+      .map((unit: any) => toNumber(unit.bedrooms))
+      .filter((value: number | null): value is number => value !== null);
 
     if (bedrooms.length > 0) {
       const min = Math.min(...bedrooms);
@@ -28,117 +185,65 @@ function getBedroomLabel(project: any) {
       if (min === 0 && max === 0) return "Studio";
       if (min === max) return min === 0 ? "Studio" : `${min} BR`;
 
-      const minLabel = min === 0 ? "Studio" : `${min} BR`;
-      const maxLabel = `${max} BR`;
-
-      return `${minLabel} - ${maxLabel}`;
+      return `${min === 0 ? "Studio" : `${min} BR`} - ${max} BR`;
     }
   }
 
-  const bedroomGroups = project?.unitSummary?.bedroomGroups || [];
+  const bedroomGroups = project.unitSummary?.bedroomGroups || [];
 
-  if (!Array.isArray(bedroomGroups) || bedroomGroups.length === 0) {
-    return "";
+  if (Array.isArray(bedroomGroups) && bedroomGroups.length > 0) {
+    const bedrooms: number[] = bedroomGroups
+      .map((group: any) => toNumber(group.bedrooms))
+      .filter((value: number | null): value is number => value !== null);
+
+    if (bedrooms.length > 0) {
+      const min = Math.min(...bedrooms);
+      const max = Math.max(...bedrooms);
+
+      if (min === 0 && max === 0) return "Studio";
+      if (min === max) return min === 0 ? "Studio" : `${min} BR`;
+
+      return `${min === 0 ? "Studio" : `${min} BR`} - ${max} BR`;
+    }
   }
 
-  const bedrooms = bedroomGroups
-    .map((group: any) => group.bedrooms)
-    .filter((value: any) => value !== null && value !== undefined);
+  return "";
+}
 
-  if (bedrooms.length === 0) return "";
+function normalizeEmirate(value: any) {
+  const emirate = String(value || "").toLowerCase();
 
-  const min = Math.min(...bedrooms);
-  const max = Math.max(...bedrooms);
+  if (emirate.includes("dubai")) return "Dubai";
+  if (emirate.includes("abu dhabi")) return "Abu Dhabi";
+  if (emirate.includes("sharjah")) return "Sharjah";
+  if (emirate.includes("ajman")) return "Ajman";
+  if (emirate.includes("ras al khaimah")) return "Ras Al Khaimah";
+  if (emirate.includes("fujairah")) return "Fujairah";
+  if (emirate.includes("umm al quwain")) return "Umm Al Quwain";
 
-  if (min === 0 && max === 0) return "Studio";
-  if (min === max) return min === 0 ? "Studio" : `${min} BR`;
-
-  const minLabel = min === 0 ? "Studio" : `${min} BR`;
-  const maxLabel = `${max} BR`;
-
-  return `${minLabel} - ${maxLabel}`;
+  return "Dubai";
 }
 
 function getPropertyType(project: any) {
-  const unitType =
-    project?.unitSummary?.bedroomGroups?.[0]?.unitType ||
-    project?.typicalUnits?.[0]?.unitType ||
-    "";
-
-  return unitType || "Apartment";
-}
-
-function getGalleryImages(project: any) {
-  const images = project?.galleryImages || [];
-
-  if (!Array.isArray(images)) return [];
-
-  return images
-    .sort((a: any, b: any) => {
-      const orderA = Number(a.displayOrder || 0);
-      const orderB = Number(b.displayOrder || 0);
-      return orderA - orderB;
-    })
-    .map((image: any) => ({
-      url: image.imageFallbackUrl || image.imageUrl,
-      alt: image.category || null,
-      order: Number(image.displayOrder || 0),
-    }))
-    .filter((image: any) => Boolean(image.url));
-}
-
-function getPrice(project: any) {
-  const typicalUnits = project?.typicalUnits || [];
-
-  if (Array.isArray(typicalUnits) && typicalUnits.length > 0) {
-    const prices = typicalUnits
-      .map((unit: any) => Number(unit.price || 0))
-      .filter((price: number) => price > 0);
-
-    if (prices.length > 0) {
-      return Math.min(...prices);
-    }
-  }
-
-  return Number(project.minPrice || project.pricing?.minPrice?.aed || 0) || 0;
-}
-
-function getSize(project: any) {
-  const typicalUnits = project?.typicalUnits || [];
-
-  if (Array.isArray(typicalUnits) && typicalUnits.length > 0) {
-    const areas = typicalUnits
-      .map((unit: any) => Number(unit.area || 0))
-      .filter((area: number) => area > 0);
-
-    if (areas.length > 0) {
-      return Math.min(...areas);
-    }
-  }
-
-  return Number(project.minSize || project.units?.minArea?.sqft || 0) || 0;
-}
-
-function getFirstDeveloperContact(project: any) {
-  const offices = project?.developer?.offices || [];
-
-  if (!Array.isArray(offices)) return null;
-
-  for (const office of offices) {
-    const contacts = office?.contacts || [];
-
-    if (Array.isArray(contacts) && contacts.length > 0) {
-      return contacts[0];
-    }
-  }
-
-  return null;
+  return String(
+    pick(
+      project.unitType,
+      project.propertyType,
+      project.type,
+      project.unitSummary?.bedroomGroups?.[0]?.unitType,
+      project.typicalUnits?.[0]?.unitType,
+      project.unitSummary?.bedroomGroups?.[0]?.unitType,
+      "Apartment",
+    ),
+  );
 }
 
 function getPropertyStatus(project: any) {
-  const saleStatus = String(project.saleStatus || "").toLowerCase();
+  const saleStatus = String(
+    pick(project.saleStatus, project.unitStatus, project.status, ""),
+  ).toLowerCase();
 
-  if (saleStatus.includes("sold") || saleStatus.includes("out of stock")) {
+  if (saleStatus.includes("sold") || saleStatus.includes("out")) {
     return "SOLD";
   }
 
@@ -149,74 +254,162 @@ function getPropertyStatus(project: any) {
   return "AVAILABLE";
 }
 
+function getFirstDeveloperContact(project: any) {
+  const offices = project?.developer?.offices || [];
+  if (!Array.isArray(offices)) return null;
+
+  for (const office of offices) {
+    const contacts = office?.contacts || [];
+    if (Array.isArray(contacts) && contacts.length > 0) {
+      return contacts[0];
+    }
+  }
+
+  return null;
+}
+
+async function fetchLeadRatJson(url: string) {
+  const response = await fetch(url, { cache: "no-store" });
+
+  let data: any = null;
+
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
+  if (!response.ok) {
+    const message =
+      data?.error ||
+      data?.message ||
+      `LeadRat API failed with status ${response.status}`;
+
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+async function fetchAllLeadRatListings(apiKey: string) {
+  const pageSize = 100;
+  let page = 1;
+  let allProjects: any[] = [];
+  let totalPages = 1;
+
+  do {
+    const url = `${LEADRAT_BASE_URL}?apiKey=${encodeURIComponent(
+      apiKey,
+    )}&page=${page}&pageSize=${pageSize}`;
+
+    const data = await fetchLeadRatJson(url);
+
+    const results = Array.isArray(data?.results)
+      ? data.results
+      : Array.isArray(data)
+        ? data
+        : [];
+
+    allProjects = [...allProjects, ...results];
+
+    totalPages = Number(data?.totalPages || 1);
+    page++;
+  } while (page <= totalPages);
+
+  return allProjects;
+}
+
+async function fetchLeadRatListingDetail(apiKey: string, projectId: string) {
+  const url = `${LEADRAT_BASE_URL}/${projectId}?apiKey=${encodeURIComponent(apiKey)}`;
+
+  try {
+    return await fetchLeadRatJson(url);
+  } catch {
+    return null;
+  }
+}
+
+function normalizeLeadRatProject(summary: any, detail: any) {
+  const detailData =
+    detail?.project ||
+    detail?.listing ||
+    detail?.data ||
+    detail?.result ||
+    detail;
+
+  if (!detailData || Array.isArray(detailData)) {
+    return summary;
+  }
+
+  return {
+    ...summary,
+    ...detailData,
+  };
+}
+
 export async function syncCrmPropertiesAction() {
-  const tenantId = process.env.LEADRAT_TENANT_ID;
   const apiKey = process.env.LEADRAT_API_KEY;
 
-  if (!tenantId || !apiKey) {
-    throw new Error("LeadRat CRM credentials are missing in .env");
+  if (!apiKey) {
+    throw new Error("LEADRAT_API_KEY is missing in .env");
   }
 
-  const response = await fetch(
-    `https://projectsapi.leadrat.com/api/public/listings?tenantId=${tenantId}&apiKey=${apiKey}`,
-    {
-      cache: "no-store",
-    }
-  );
+  const summaries = await fetchAllLeadRatListings(apiKey);
 
-  const data = await response.json();
-
-  if (!response.ok || data?.error) {
-    throw new Error(data?.error || "Failed to fetch LeadRat CRM listings");
+  if (!Array.isArray(summaries)) {
+    throw new Error("Invalid LeadRat response format.");
   }
 
-  const projects = Array.isArray(data)
-    ? data
-    : data?.projects || data?.data || [];
-
-  if (!Array.isArray(projects)) {
-    throw new Error("Invalid CRM response format");
-  }
-
-  for (const project of projects) {
-    const crmId = String(project.id || project.externalId || "");
+  for (const summary of summaries) {
+    const crmId = String(
+      pick(summary.id, summary.projectId, summary.externalId, ""),
+    );
 
     if (!crmId) continue;
 
-    const title = String(project.name || "Untitled CRM Project");
+    const detail = await fetchLeadRatListingDetail(apiKey, crmId);
+    const project = normalizeLeadRatProject(summary, detail);
 
-    const developerName = String(
-      project.developer?.name || project.developerName || "Unknown Developer"
-    );
-
-    const developerSlug = createSlug(developerName);
+    const title = getTitle(project);
+    const developerName = getDeveloperName(project);
+    const developerSlug = createSlug(developerName) || "developer";
 
     const developer = await prisma.developer.upsert({
       where: {
         name: developerName,
       },
       update: {
-        logo: project.developer?.logoUrl || null,
-        description: project.developer?.description || null,
-        website: project.developer?.website || null,
+        logo: pick(project.developerLogo, project.developer?.logoUrl, null),
+        description: pick(
+          project.developer?.description,
+          project.developerDescription,
+          null,
+        ),
+        website: pick(
+          project.developer?.website,
+          project.developerWebsite,
+          null,
+        ),
       },
       create: {
         name: developerName,
         slug: `${developerSlug}-${Date.now()}`,
-        logo: project.developer?.logoUrl || null,
-        description: project.developer?.description || null,
-        website: project.developer?.website || null,
+        logo: pick(project.developerLogo, project.developer?.logoUrl, null),
+        description: pick(
+          project.developer?.description,
+          project.developerDescription,
+          null,
+        ),
+        website: pick(
+          project.developer?.website,
+          project.developerWebsite,
+          null,
+        ),
       },
     });
 
     const galleryImages = getGalleryImages(project);
-
-    const featuredImage =
-      project.coverImageFallbackUrl ||
-      project.coverImageUrl ||
-      galleryImages[0]?.url ||
-      "";
-
+    const featuredImage = getFeaturedImage(project, galleryImages);
     const contact = getFirstDeveloperContact(project);
 
     const price = getPrice(project);
@@ -228,7 +421,7 @@ export async function syncCrmPropertiesAction() {
       },
       update: {
         title,
-        description: project.description || "",
+        description: String(pick(project.description, project.overview, "")),
         category: "OFFPLAN",
         status: getPropertyStatus(project) as any,
         approvalStatus: "APPROVED",
@@ -238,65 +431,70 @@ export async function syncCrmPropertiesAction() {
         bathrooms: 0,
         size,
 
-        emirate: project.region || "Dubai",
-        district: project.district || project.sector || "",
+        emirate: normalizeEmirate(pick(project.region, project.emirate, project.district, "Dubai")),
+        district: String(
+          pick(
+            project.district,
+            project.location,
+            project.area,
+            project.sector,
+            "",
+          ),
+        ),
         type: getPropertyType(project),
 
         featuredImage,
         developerId: developer.id,
         isFromCRM: true,
 
-        completionDate: project.completionDate || null,
-        constructionStatus: project.constructionStatus || null,
+        completionDate: pick(
+          project.completionQuarter,
+          project.completionDate,
+          project.handover,
+          project.handoverDate,
+          project.handoverQuarter,
+          null,
+        ),
+        constructionStatus: pick(project.constructionStatus, null),
 
-        latitude:
-          project.latitude !== null && project.latitude !== undefined
-            ? Number(project.latitude)
-            : null,
+        latitude: toNumber(project.latitude),
+        longitude: toNumber(project.longitude),
 
-        longitude:
-          project.longitude !== null && project.longitude !== undefined
-            ? Number(project.longitude)
-            : null,
+        fullAddress: pick(project.fullAddress, project.address, null),
+        sector: pick(project.sector, null),
 
-        fullAddress: project.fullAddress || null,
-        sector: project.sector || null,
-
-        videoReviewUrl: project.videoReviewUrl || null,
-        generalPlanUrl: project.generalPlanUrl || null,
+        videoReviewUrl: pick(project.videoReviewUrl, project.videoUrl, null),
+        generalPlanUrl: pick(
+          project.generalPlanUrl,
+          project.masterPlanUrl,
+          null,
+        ),
 
         serviceCharge:
-          project.serviceCharge !== null && project.serviceCharge !== undefined
+          pick(project.serviceCharge, null) !== null
             ? String(project.serviceCharge)
             : null,
 
-        furnishing: project.furnishing || null,
+        furnishing: pick(project.furnishing, null),
 
-        buildingCount:
-          project.buildingCount !== null && project.buildingCount !== undefined
-            ? Number(project.buildingCount)
-            : null,
+        buildingCount: toNumber(project.buildingCount),
+        unitCount: toNumber(project.unitCount),
 
-        unitCount:
-          project.unitCount !== null && project.unitCount !== undefined
-            ? Number(project.unitCount)
-            : null,
+        developerContactName: pick(contact?.displayName, contact?.name, null),
+        developerContactPhone: pick(contact?.phone, null),
+        developerWhatsapp: pick(contact?.whatsApp, contact?.whatsapp, null),
 
-        developerContactName: contact?.displayName || contact?.name || null,
-        developerContactPhone: contact?.phone || null,
-        developerWhatsapp: contact?.whatsApp || null,
-
-        paymentPlans: project.paymentPlans || [],
-        amenities: project.amenities || [],
-        typicalUnits: project.typicalUnits || [],
-        documents: project.documents || [],
+        paymentPlans: pick(project.paymentPlans, project.paymentPlan, []),
+        amenities: pick(project.amenities, []),
+        typicalUnits: pick(project.typicalUnits, project.units, []),
+        documents: pick(project.documents, project.files, []),
 
         crmRawData: project,
       },
       create: {
         title,
-        slug: `${createSlug(title)}-${Date.now()}`,
-        description: project.description || "",
+        slug: `${createSlug(title) || "crm-project"}-${Date.now()}`,
+        description: String(pick(project.description, project.overview, "")),
         category: "OFFPLAN",
         status: getPropertyStatus(project) as any,
         approvalStatus: "APPROVED",
@@ -306,8 +504,16 @@ export async function syncCrmPropertiesAction() {
         bathrooms: 0,
         size,
 
-        emirate: project.region || "Dubai",
-        district: project.district || project.sector || "",
+        emirate: normalizeEmirate(pick(project.region, project.emirate, project.district, "Dubai")),
+        district: String(
+          pick(
+            project.district,
+            project.location,
+            project.area,
+            project.sector,
+            "",
+          ),
+        ),
         type: getPropertyType(project),
 
         featuredImage,
@@ -315,59 +521,54 @@ export async function syncCrmPropertiesAction() {
         crmId,
         isFromCRM: true,
 
-        completionDate: project.completionDate || null,
-        constructionStatus: project.constructionStatus || null,
+        completionDate: pick(
+          project.completionQuarter,
+          project.completionDate,
+          project.handover,
+          project.handoverDate,
+          project.handoverQuarter,
+          null,
+        ),
+        constructionStatus: pick(project.constructionStatus, null),
 
-        latitude:
-          project.latitude !== null && project.latitude !== undefined
-            ? Number(project.latitude)
-            : null,
+        latitude: toNumber(project.latitude),
+        longitude: toNumber(project.longitude),
 
-        longitude:
-          project.longitude !== null && project.longitude !== undefined
-            ? Number(project.longitude)
-            : null,
+        fullAddress: pick(project.fullAddress, project.address, null),
+        sector: pick(project.sector, null),
 
-        fullAddress: project.fullAddress || null,
-        sector: project.sector || null,
-
-        videoReviewUrl: project.videoReviewUrl || null,
-        generalPlanUrl: project.generalPlanUrl || null,
+        videoReviewUrl: pick(project.videoReviewUrl, project.videoUrl, null),
+        generalPlanUrl: pick(
+          project.generalPlanUrl,
+          project.masterPlanUrl,
+          null,
+        ),
 
         serviceCharge:
-          project.serviceCharge !== null && project.serviceCharge !== undefined
+          pick(project.serviceCharge, null) !== null
             ? String(project.serviceCharge)
             : null,
 
-        furnishing: project.furnishing || null,
+        furnishing: pick(project.furnishing, null),
 
-        buildingCount:
-          project.buildingCount !== null && project.buildingCount !== undefined
-            ? Number(project.buildingCount)
-            : null,
+        buildingCount: toNumber(project.buildingCount),
+        unitCount: toNumber(project.unitCount),
 
-        unitCount:
-          project.unitCount !== null && project.unitCount !== undefined
-            ? Number(project.unitCount)
-            : null,
+        developerContactName: pick(contact?.displayName, contact?.name, null),
+        developerContactPhone: pick(contact?.phone, null),
+        developerWhatsapp: pick(contact?.whatsApp, contact?.whatsapp, null),
 
-        developerContactName: contact?.displayName || contact?.name || null,
-        developerContactPhone: contact?.phone || null,
-        developerWhatsapp: contact?.whatsApp || null,
-
-        paymentPlans: project.paymentPlans || [],
-        amenities: project.amenities || [],
-        typicalUnits: project.typicalUnits || [],
-        documents: project.documents || [],
+        paymentPlans: pick(project.paymentPlans, project.paymentPlan, []),
+        amenities: pick(project.amenities, []),
+        typicalUnits: pick(project.typicalUnits, project.units, []),
+        documents: pick(project.documents, project.files, []),
 
         crmRawData: project,
       },
     });
 
     await prisma.propertyImage.deleteMany({
-      where: {
-        propertyId: property.id,
-      },
+      where: { propertyId: property.id },
     });
 
     if (galleryImages.length > 0) {
@@ -382,63 +583,58 @@ export async function syncCrmPropertiesAction() {
     }
 
     await prisma.propertyAmenity.deleteMany({
-      where: {
-        propertyId: property.id,
-      },
+      where: { propertyId: property.id },
     });
 
-    if (Array.isArray(project.amenities) && project.amenities.length > 0) {
+    const amenities = pick(project.amenities, []);
+
+    if (Array.isArray(amenities) && amenities.length > 0) {
       await prisma.propertyAmenity.createMany({
-        data: project.amenities.map((amenity: any, index: number) => ({
+        data: amenities.map((amenity: any, index: number) => ({
           propertyId: property.id,
-          name: String(amenity.name || "Amenity"),
-          iconUrl: amenity.iconUrl || null,
-          displayOrder: Number(amenity.displayOrder || index),
+          name: String(pick(amenity.name, amenity.title, amenity, "Amenity")),
+          iconUrl: pick(amenity.iconUrl, amenity.icon, null),
+          displayOrder: Number(
+            pick(amenity.displayOrder, amenity.order, index),
+          ),
         })),
       });
     }
 
     await prisma.propertyDocument.deleteMany({
-      where: {
-        propertyId: property.id,
-      },
+      where: { propertyId: property.id },
     });
 
-    if (Array.isArray(project.documents) && project.documents.length > 0) {
+    const documents = pick(project.documents, project.files, []);
+
+    if (Array.isArray(documents) && documents.length > 0) {
       await prisma.propertyDocument.createMany({
-        data: project.documents
+        data: documents
           .map((document: any) => ({
             propertyId: property.id,
-            name: String(document.name || "Document"),
-            url: document.fallbackUrl || document.url || "",
-            type: document.type || null,
+            name: String(pick(document.name, document.title, "Document")),
+            url: String(
+              pick(document.fallbackUrl, document.url, document.fileUrl, ""),
+            ),
+            type: pick(document.type, document.category, null),
           }))
           .filter((document: any) => Boolean(document.url)),
       });
     }
 
     await prisma.propertyUnit.deleteMany({
-      where: {
-        propertyId: property.id,
-      },
+      where: { propertyId: property.id },
     });
 
-    if (Array.isArray(project.typicalUnits) && project.typicalUnits.length > 0) {
+    const units = pick(project.typicalUnits, project.units, []);
+
+    if (Array.isArray(units) && units.length > 0) {
       await prisma.propertyUnit.createMany({
-        data: project.typicalUnits.map((unit: any) => ({
+        data: units.map((unit: any) => ({
           propertyId: property.id,
-          bedrooms:
-            unit.bedrooms !== null && unit.bedrooms !== undefined
-              ? Number(unit.bedrooms)
-              : null,
-          area:
-            unit.area !== null && unit.area !== undefined
-              ? Number(unit.area)
-              : null,
-          price:
-            unit.price !== null && unit.price !== undefined
-              ? Number(unit.price)
-              : null,
+          bedrooms: toNumber(unit.bedrooms),
+          area: toNumber(pick(unit.area, unit.size, unit.sqft)),
+          price: toNumber(pick(unit.price, unit.minPrice, unit.priceFrom)),
         })),
       });
     }

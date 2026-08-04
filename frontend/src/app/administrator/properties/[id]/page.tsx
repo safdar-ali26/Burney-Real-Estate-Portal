@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Edit, Lock } from "lucide-react";
+import { ArrowLeft, Edit, Lock, CheckCircle2, XCircle } from "lucide-react";
+import {
+  approvePropertyAction,
+  rejectPropertyAction,
+} from "@/actions/update-property-approval";
 
 import AdminLayout from "@/components/admin/admin-layout";
 import DeletePropertyButton from "@/components/admin/delete-property-button";
@@ -65,6 +69,8 @@ export default async function PropertyDetailsPage({ params }: Props) {
   }
 
   const deleteProperty = deletePropertyAction.bind(null, property.id);
+  const approveProperty = approvePropertyAction.bind(null, property.id);
+  const rejectProperty = rejectPropertyAction.bind(null, property.id);
 
   function cleanDescription(description?: string | null) {
     if (!description) return "No description available.";
@@ -86,6 +92,29 @@ export default async function PropertyDetailsPage({ params }: Props) {
           </Link>
 
           <div className="flex flex-wrap items-center gap-3">
+            {property.approvalStatus === "PENDING" ? (
+              <>
+                <form action={approveProperty}>
+                  <button
+                    type="submit"
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-green-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    Approve Property
+                  </button>
+                </form>
+
+                <form action={rejectProperty}>
+                  <button
+                    type="submit"
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-red-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+                  >
+                    <XCircle className="h-4 w-4" />
+                    Reject Property
+                  </button>
+                </form>
+              </>
+            ) : null}
             {property.isFromCRM ? (
               <div className="inline-flex items-center gap-2 rounded-2xl border border-[#EBCB4C]/30 bg-[#EBCB4C]/10 px-5 py-3 text-sm font-semibold text-[#EBCB4C]">
                 <Lock className="h-4 w-4" />
@@ -109,15 +138,15 @@ export default async function PropertyDetailsPage({ params }: Props) {
 
         {/* 80 / 20 Layout */}
         <div
-  style={{
-    display: "grid",
-    gridTemplateColumns: "63% 35%",
-    gap: "16px",
-    width: "100%",
-    alignItems: "start",
-    overflow: "visible",
-  }}
->
+          style={{
+            display: "grid",
+            gridTemplateColumns: "63% 35%",
+            gap: "16px",
+            width: "100%",
+            alignItems: "start",
+            overflow: "visible",
+          }}
+        >
           {/* Left 80% */}
           <main style={{ width: "100%" }} className="space-y-4">
             <section
@@ -157,7 +186,12 @@ export default async function PropertyDetailsPage({ params }: Props) {
               >
                 {[
                   ["Availability", property.status],
-                  ["Handover", property.completionDate || "TBA"],
+                  [
+                    property.category === "OFFPLAN" ? "Handover" : "Status",
+                    property.category === "OFFPLAN"
+                      ? property.completionDate || "TBA"
+                      : "Ready",
+                  ],
                 ].map(([label, value]) => (
                   <div
                     key={label}
@@ -630,15 +664,15 @@ export default async function PropertyDetailsPage({ params }: Props) {
 
           {/* Right 20% */}
           <aside
-  style={{
-    width: "100%",
-    alignSelf: "start",
-    position: "sticky",
-    top: "120px",
-    height: "fit-content",
-  }}
-  className="space-y-6"
->
+            style={{
+              width: "100%",
+              alignSelf: "start",
+              position: "sticky",
+              top: "120px",
+              height: "fit-content",
+            }}
+            className="space-y-6"
+          >
             <div className="rounded-3xl border border-border bg-card p-6 shadow-xl">
               <h2 className="text-2xl font-bold text-foreground">
                 {property.title}
@@ -719,39 +753,80 @@ export default async function PropertyDetailsPage({ params }: Props) {
             </div>
 
             <section className="rounded-3xl border border-border bg-card p-5 shadow-xl">
-              <div className="flex items-center gap-4">
-                <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-white">
-                  {property.developer?.logo ? (
-                    <img
-                      src={property.developer.logo}
-                      alt={property.developer.name || "Developer"}
-                      className="h-full w-full object-contain p-3"
-                    />
-                  ) : (
-                    <span className="text-xl font-bold text-black">
-                      {property.developer?.name?.charAt(0) || "D"}
-                    </span>
-                  )}
-                </div>
+              {property.category === "OFFPLAN" ? (
+                <>
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-white">
+                      {property.developer?.logo ? (
+                        <img
+                          src={property.developer.logo}
+                          alt={property.developer.name || "Developer"}
+                          className="h-full w-full object-contain p-3"
+                        />
+                      ) : (
+                        <span className="text-xl font-bold text-black">
+                          {property.developer?.name?.charAt(0) || "D"}
+                        </span>
+                      )}
+                    </div>
 
-                <div>
-                  <h3 className="text-lg font-bold text-foreground">
+                    <div>
+                      <h3 className="text-lg font-bold text-foreground">
+                        {property.developer?.name || "Developer"}
+                      </h3>
+
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Project Developer
+                      </p>
+                    </div>
+                  </div>
+
+                  <Link
+                    href={`/administrator/properties?developer=${property.developerId || ""}`}
+                    className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl border border-[#EBCB4C]/30 bg-[#EBCB4C]/10 px-4 py-3 text-sm font-bold text-[#EBCB4C] transition hover:bg-[#EBCB4C] hover:text-black"
+                  >
+                    <span>🏢</span>
+                    View All Projects by{" "}
                     {property.developer?.name || "Developer"}
-                  </h3>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-white">
+                      {property.agent?.profileImage ? (
+                        <img
+                          src={property.agent.profileImage}
+                          alt={property.agent.name || "Agent"}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-xl font-bold text-black">
+                          {property.agent?.name?.charAt(0) || "A"}
+                        </span>
+                      )}
+                    </div>
 
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Project Developer
-                  </p>
-                </div>
-              </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-foreground">
+                        {property.agent?.name || "Agent"}
+                      </h3>
 
-              <Link
-                href={`/administrator/properties?developer=${property.developerId || ""}`}
-                className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl border border-[#EBCB4C]/30 bg-[#EBCB4C]/10 px-4 py-3 text-sm font-bold text-[#EBCB4C] transition hover:bg-[#EBCB4C] hover:text-black"
-              >
-                <span>🏢</span>
-                View All Projects by {property.developer?.name || "Developer"}
-              </Link>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Property Consultant
+                      </p>
+                    </div>
+                  </div>
+
+                  <Link
+                    href={`/administrator/properties?agent=${property.agentId || ""}`}
+                    className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl border border-[#EBCB4C]/30 bg-[#EBCB4C]/10 px-4 py-3 text-sm font-bold text-[#EBCB4C] transition hover:bg-[#EBCB4C] hover:text-black"
+                  >
+                    <span>👤</span>
+                    View All Properties by {property.agent?.name || "Agent"}
+                  </Link>
+                </>
+              )}
             </section>
           </aside>
         </div>

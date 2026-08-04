@@ -35,49 +35,45 @@ import { prisma } from "@/lib/prisma";
 export default async function AdministratorPage() {
   await requireRole("ADMIN");
 
-  const [
-    totalProperties,
-    totalDevelopers,
-    totalLeads,
-    totalAgents,
-    totalUsers,
-    totalSettings,
-    recentProperties,
-    recentAgents,
-  ] = await Promise.all([
-    prisma.property.count(),
-    prisma.developer.count(),
-    prisma.lead.count(),
-    prisma.user.count({
-      where: {
-        role: "AGENT",
-      },
-    }),
-    prisma.user.count({
-      where: {
-        role: "USER",
-      },
-    }),
-    prisma.siteSetting.count(),
-    prisma.property.findMany({
-      take: 4,
-      orderBy: {
-        createdAt: "desc",
-      },
-      include: {
-        developer: true,
-      },
-    }),
-    prisma.user.findMany({
-      take: 4,
-      where: {
-        role: "AGENT",
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    }),
-  ]);
+  const totalProperties = await prisma.property.count();
+
+const totalDevelopers = await prisma.developer.count();
+
+const totalLeads = await prisma.lead.count();
+
+const totalAgents = await prisma.user.count({
+  where: {
+    role: "AGENT",
+  },
+});
+
+const totalUsers = await prisma.user.count({
+  where: {
+    role: "USER",
+  },
+});
+
+const totalSettings = await prisma.siteSetting.count();
+
+const recentProperties = await prisma.property.findMany({
+  take: 4,
+  orderBy: {
+    createdAt: "desc",
+  },
+  include: {
+    developer: true,
+  },
+});
+
+const recentAgents = await prisma.user.findMany({
+  take: 4,
+  where: {
+    role: "AGENT",
+  },
+  orderBy: {
+    createdAt: "desc",
+  },
+});
 
   const dashboardCards = [
     {

@@ -450,8 +450,16 @@ export default async function AdminPropertiesPage({ searchParams }: Props) {
 
             <div className="grid gap-5 lg:grid-cols-3">
               {properties.map((property) => {
-                const imageUrl =
+                const rawImageUrl =
                   property.featuredImage || property.images[0]?.url || "";
+
+                const imageUrl =
+                  rawImageUrl &&
+                  (rawImageUrl.startsWith("http://") ||
+                    rawImageUrl.startsWith("https://") ||
+                    rawImageUrl.startsWith("/"))
+                    ? rawImageUrl
+                    : "";
 
                 return (
                   <Link
@@ -468,7 +476,6 @@ export default async function AdminPropertiesPage({ searchParams }: Props) {
                           className="object-cover transition duration-500 group-hover:scale-105"
                         />
                       ) : (
-                        
                         <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                           No Image
                         </div>
@@ -487,18 +494,33 @@ export default async function AdminPropertiesPage({ searchParams }: Props) {
 
                     <div className="p-4">
                       <div className="-mt-10 mb-3">
-                        {property.developer?.logo ? (
-                          <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-4 border-card shadow-lg">
+                        {property.category === "OFFPLAN" ? (
+                          property.developer?.logo ? (
+                            <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-4 border-card shadow-lg">
+                              <Image
+                                src={property.developer.logo}
+                                alt={property.developer.name}
+                                fill
+                                className="object-contain p-2"
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex h-14 w-14 items-center justify-center rounded-full border-card border-4 bg-[#EBCB4C] text-lg font-bold text-black shadow-lg">
+                              {property.developer?.name?.charAt(0) || "D"}
+                            </div>
+                          )
+                        ) : property.agent?.profileImage ? (
+                          <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-4 border-card bg-muted shadow-lg">
                             <Image
-                              src={property.developer.logo}
-                              alt={property.developer.name}
+                              src={property.agent.profileImage}
+                              alt={property.agent.name || "Agent"}
                               fill
-                              className="object-contain p-2"
+                              className="object-cover"
                             />
                           </div>
                         ) : (
                           <div className="flex h-14 w-14 items-center justify-center rounded-full border-4 border-card bg-[#EBCB4C] text-lg font-bold text-black shadow-lg">
-                            {property.developer?.name?.charAt(0) || "B"}
+                            {property.agent?.name?.charAt(0) || "A"}
                           </div>
                         )}
                       </div>
